@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA Settings -->
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
+    
+    <title>Go Navigation</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#121212',
+                            surface: '#1e1e1e',
+                            border: '#333333'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* Animations */
+        .slide-up { transform: translateY(0); }
+        .slide-down { transform: translateY(100%); }
+        .fade-in { opacity: 1; pointer-events: auto; }
+        .fade-out { opacity: 0; pointer-events: none; }
+
+        .transition-all-300 {
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* User Location Pulse */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.33); }
+            80%, 100% { opacity: 0; }
+        }
+        .user-marker { position: relative; }
+        .user-marker::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            z-index: -1;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        .user-marker::after {
+            content: '';
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Navigation Arrow */
+        .nav-arrow {
+            width: 0; 
+            height: 0; 
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 20px solid #000;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        /* Compass/Bearing rotation for nav arrow */
+        .nav-arrow-container {
+            transition: transform 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen w-screen relative">
+
+    <!-- MAP CONTAINER -->
+    <div id="map"></div>
+
+    <!-- === UI LAYER === -->
+    
+    <!-- 1. HEADER (Menu & Profile) - Only visible in Home State -->
+    <div id="header-ui" class="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-300 safe-top">
+        <button class="pointer-events-auto bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition transform active:scale-95" onclick="openSettings()">
+            <i data-lucide="menu" class="w-6 h-6 text-black"></i>
+        </button>
+        <div class="pointer-events-auto bg-white p-1 rounded-full shadow-lg flex items-center pr-4 transition transform active:scale-95 cursor-pointer">
+            <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-2">
+                <i data-lucide="user" class="w-5 h-5 text-gray-600"></i>
+            </div>
+            <span class="font-semibold text-sm">Guest</span>
+        </div>
+    </div>
+
+    <!-- Re-center Button -->
+    <button id="recenter-btn" onclick="recenterMap()" class="absolute bottom-32 right-4 z-20 bg-white dark:bg-dark-surface p-3 rounded-full shadow-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition transform active:scale-95 opacity-0 pointer-events-none">
+        <i data-lucide="crosshair" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
+    </button>
+
+    <!-- 2. HOME STATE (Floating Search) -->
+    <div id="home-state" class="absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] p-5 pb-8 transition-transform duration-300">
+        <h2 class="text-xl font-bold mb-4 ml-1">Where to?</h2>
+        
+        <div onclick="goToSearchState()" class="bg-gray-100 rounded-lg p-3 flex items-center shadow-sm cursor-pointer active:scale-[0.99] transition-transform">
+            <i data-lucide="search" class="w-5 h-5 text-black mr-3 ml-1"></i>
+            <span class="text-lg font-semibold text-gray-800">Search destination</span>
+        </div>
+
+        <!-- Shortcuts -->
+        <div class="mt-6 flex space-x-4 overflow-x-auto no-scrollbar pb-2">
+            <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Home')">
+                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+                    <i data-lucide="home" class="w-6 h-6 text-black"></i>
+                </div>
+                <span class="text-xs font-medium">Home</span>
+            </div>
+            <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Work')">
+                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+                    <i data-lucide="briefcase" class="w-6 h-6 text-black"></i>
+                </div>
+                <span class="text-xs font-medium">Work</span>
+            </div>
+            <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Gas')">
+                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+                    <i data-lucide="fuel" class="w-6 h-6 text-black"></i>
+                </div>
+                <span class="text-xs font-medium">Gas</span>
+            </div>
+             <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Coffee')">
+                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+                    <i data-lucide="coffee" class="w-6 h-6 text-black"></i>
+                </div>
+                <span class="text-xs font-medium">Coffee</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SEARCH STATE (Full Screen Overlay) -->
+    <div id="search-state" class="absolute inset-0 z-40 bg-white transform translate-y-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 shadow-sm relative z-10 bg-white">
+            <button onclick="goBackToHome()" class="absolute left-4 top-4 p-2 -ml-2 hover:bg-gray-100 rounded-full">
+                <i data-lucide="arrow-left" class="w-6 h-6 text-black"></i>
+            </button>
+            <div class="text-center font-semibold text-lg pt-1">Set Destination</div>
+        </div>
+
+        <div class="px-5 pt-2 pb-4 relative">
+            <div class="flex items-center mb-3 relative z-20">
+                <div class="w-2 h-2 bg-blue-500 rounded-full mr-4 ml-1 ring-4 ring-blue-100"></div>
+                <input type="text" value="Current Location" class="w-full bg-gray-50 p-3 rounded-lg text-gray-500 text-sm font-medium border-none" disabled>
+            </div>
+            
+            <div class="flex items-center relative z-20">
+                <div class="w-2 h-2 bg-black rounded-none mr-4 ml-1"></div>
+                <input type="text" id="destination-input" placeholder="Enter destination" class="w-full bg-gray-100 p-3 rounded-lg text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-black transition-all">
+            </div>
+            
+            <!-- Connector Line -->
+            <div class="absolute left-[29px] top-[40px] bottom-[40px] w-0.5 bg-gray-200 z-0"></div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto" id="suggestions-list">
+             <!-- Initial Suggestions -->
+             <div class="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Recent</div>
+             <div onclick="selectPresetDestination('Empire State Building')" class="flex items-center p-4 hover:bg-gray-50 cursor-pointer transition">
+                <div class="bg-gray-100 p-3 rounded-full mr-4">
+                    <i data-lucide="clock" class="w-5 h-5 text-gray-600"></i>
+                </div>
+                <div>
+                    <div class="font-bold text-gray-800">Empire State Building</div>
+                    <div class="text-sm text-gray-500">20 W 34th St, New York</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. ROUTE PREVIEW (Replaces Vehicle Selection) -->
+    <div id="route-preview-sheet" class="absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300 flex flex-col pb-6">
+        
+        <!-- Drag Handle -->
+        <div class="w-full flex justify-center pt-3 pb-1">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full"></div>
+        </div>
+
+        <!-- Destination Info -->
+        <div class="px-6 pt-2 pb-4 border-b border-gray-100">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900" id="preview-dest-name">Destination</h2>
+                    <p class="text-gray-500 text-sm mt-1">Fastest route • Traffic is light</p>
+                </div>
+                <div class="bg-gray-100 p-2 rounded-full cursor-pointer" onclick="resetMap()">
+                    <i data-lucide="x" class="w-5 h-5 text-gray-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Route Stats -->
+        <div class="p-6 grid grid-cols-3 gap-4 text-center">
+            <div>
+                <div class="text-2xl font-bold text-green-600">18</div>
+                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider">min</div>
+            </div>
+            <div class="border-l border-r border-gray-100">
+                <div class="text-2xl font-bold text-gray-800">4.2</div>
+                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider">miles</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-800">1:42</div>
+                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider">PM</div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="px-6 pb-2">
+            <button onclick="startNavigation()" class="w-full bg-black text-white py-4 rounded-xl font-bold text-xl hover:bg-gray-800 transition shadow-lg flex items-center justify-center space-x-2 active:scale-[0.98]">
+                <i data-lucide="navigation" class="w-5 h-5 fill-current"></i>
+                <span>Start</span>
+            </button>
+            <button class="mt-3 w-full bg-white text-gray-700 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 transition flex items-center justify-center space-x-2">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                <span>Steps & More</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 5. NAVIGATION MODE (Turn-by-Turn UI) -->
+    
+    <!-- Top Bar: Instructions -->
+    <div id="nav-top-bar" class="absolute top-0 left-0 right-0 z-30 bg-black dark:bg-dark-surface text-white p-4 m-4 rounded-xl shadow-2xl transform -translate-y-[150%] transition-transform duration-500 flex items-center safe-top">
+        <div class="bg-white/20 p-3 rounded-lg mr-4">
+            <i data-lucide="arrow-up-right" class="w-8 h-8 text-white"></i>
+        </div>
+        <div>
+            <div class="text-sm text-gray-300 font-medium">500 ft</div>
+            <div class="text-xl font-bold leading-tight">Turn right onto Broadway</div>
+        </div>
+    </div>
+
+    <!-- Report Button (Waze Style) -->
+    <div id="nav-report-btn" class="absolute right-4 top-32 z-30 transform translate-x-[200%] transition-transform duration-500">
+        <button onclick="toggleReportMenu()" class="bg-white dark:bg-dark-surface p-3 rounded-full shadow-lg border-2 border-orange-500 text-orange-500 hover:bg-orange-50 dark:hover:bg-gray-800">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </button>
+    </div>
+
+    <!-- Report Menu (Modal) -->
+    <div id="report-menu" class="absolute bottom-32 right-4 left-4 z-40 bg-white dark:bg-dark-surface rounded-xl shadow-2xl p-4 transform scale-90 opacity-0 pointer-events-none transition-all duration-200 origin-bottom-right">
+        <h3 class="font-bold text-gray-900 dark:text-white mb-3">Report Incident</h3>
+        <div class="grid grid-cols-3 gap-2">
+            <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Crash')">
+                <div class="bg-red-100 dark:bg-red-900 p-2 rounded-full mb-1 text-red-600 dark:text-red-300"><i data-lucide="car" class="w-5 h-5"></i></div>
+                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Crash</span>
+            </button>
+            <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Police')">
+                <div class="bg-blue-100 dark:bg-blue-900 p-2 rounded-full mb-1 text-blue-600 dark:text-blue-300"><i data-lucide="shield" class="w-5 h-5"></i></div>
+                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Police</span>
+            </button>
+            <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Hazard')">
+                <div class="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-full mb-1 text-yellow-600 dark:text-yellow-300"><i data-lucide="alert-octagon" class="w-5 h-5"></i></div>
+                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Hazard</span>
+            </button>
+        </div>
+        <button onclick="toggleReportMenu()" class="mt-3 w-full py-2 text-sm text-gray-500 dark:text-gray-400 font-medium hover:text-gray-800 dark:hover:text-white">Cancel</button>
+    </div>
+
+    <!-- Bottom Bar: Status -->
+    <div id="nav-bottom-bar" class="absolute bottom-0 left-0 right-0 z-30 bg-white dark:bg-dark-surface p-4 pb-8 rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400">18</div>
+                    <div class="text-xs font-bold text-gray-400">min</div>
+                </div>
+                <div>
+                    <div class="font-bold text-xl text-gray-800 dark:text-white" id="eta-display">1:42 PM</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">4.2 mi • 35 mph</div>
+                </div>
+            </div>
+            <button onclick="endNavigation()" class="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-6 py-3 rounded-full font-bold text-sm hover:bg-red-100 dark:hover:bg-red-900/50 transition">
+                End Trip
+            </button>
+        </div>
+    </div>
+
+    <!-- 6. SETTINGS STATE -->
+    <div id="settings-state" class="absolute inset-0 z-50 bg-white dark:bg-dark-bg transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
+            <button onclick="closeSettings()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
+                <i data-lucide="arrow-left" class="w-6 h-6 text-black dark:text-white"></i>
+            </button>
+            <div class="font-bold text-xl dark:text-white">Settings</div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-bg p-4 space-y-4">
+            
+            <!-- Map Settings -->
+            <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Map Display</h3>
+                
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                            <i data-lucide="moon" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+                        </div>
+                        <span class="font-medium text-gray-900 dark:text-white">Dark Mode</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" onchange="toggleDarkMode()">
+                        <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black dark:peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                            <i data-lucide="download-cloud" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Offline Maps</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Download specific areas</div>
+                        </div>
+                    </div>
+                    <button onclick="openOfflineMaps()" class="text-blue-600 dark:text-blue-400 font-bold text-sm">Manage</button>
+                </div>
+            </div>
+
+            <!-- Navigation Settings -->
+            <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Navigation</h3>
+                
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                            <i data-lucide="volume-2" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+                        </div>
+                        <span class="font-medium text-gray-900 dark:text-white">Voice Navigation</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="voice-toggle" class="sr-only peer" checked onchange="toggleVoice()">
+                        <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                            <i data-lucide="ruler" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+                        </div>
+                        <span class="font-medium text-gray-900 dark:text-white">Units</span>
+                    </div>
+                    <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                        <button id="unit-mi" onclick="setUnits('mi')" class="px-3 py-1 rounded-md text-xs font-bold bg-white dark:bg-gray-600 dark:text-white shadow-sm transition">mi</button>
+                        <button id="unit-km" onclick="setUnits('km')" class="px-3 py-1 rounded-md text-xs font-bold text-gray-500 dark:text-gray-400 transition">km</button>
+                    </div>
+                </div>
+
+                 <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                            <i data-lucide="dollar-sign" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+                        </div>
+                        <span class="font-medium text-gray-900 dark:text-white">Avoid Tolls</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="tolls-toggle" class="sr-only peer" onchange="toggleTolls()">
+                        <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                    </label>
+                </div>
+            </div>
+
+             <div class="text-center text-xs text-gray-400 mt-8">
+                Version 1.0.0 • Go Navigation
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. OFFLINE MAPS MODAL -->
+    <div id="offline-maps-modal" class="absolute inset-0 z-[60] bg-white dark:bg-dark-bg transform translate-y-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
+            <button onclick="closeOfflineMaps()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
+                <i data-lucide="x" class="w-6 h-6 text-black dark:text-white"></i>
+            </button>
+            <div class="font-bold text-xl dark:text-white">Offline Maps</div>
+        </div>
+        
+        <div class="p-4 bg-gray-50 dark:bg-dark-bg flex-1 overflow-y-auto">
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Add New Region</h3>
+                <div class="flex space-x-2">
+                    <input type="text" id="offline-search-input" placeholder="Search city (e.g. Breda)" class="flex-1 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="searchOfflineRegion()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div id="offline-search-results" class="mt-2 space-y-2"></div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Downloaded Maps</h3>
+                <div id="downloaded-maps-list" class="space-y-2">
+                    <!-- Items will be added here -->
+                    <div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-gray-900 dark:text-white">New York, NY</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">15 MB • Expires in 29 days</div>
+                        </div>
+                        <button class="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-full">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error/Status Toast -->
+    <div id="toast" class="absolute top-24 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-sm px-6 py-3 rounded-full shadow-xl opacity-0 transition-opacity duration-300 z-50 pointer-events-none flex items-center space-x-2 w-max max-w-[90%]">
+        <i data-lucide="info" class="w-4 h-4 text-white"></i>
+        <span id="toast-msg">Notification</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker failed', err));
+            });
+        }
+
+        // --- 1. CONFIG & INIT ---
+        lucide.createIcons();
+        
+        // Default to null, we will fetch real location
+        let CURRENT_LOCATION = null; 
+        let WATCH_ID = null;
+        let WAKE_LOCK = null; // New Wake Lock variable
+
+        // Settings Globals
+        let USE_METRIC = false;
+        let VOICE_ENABLED = true;
+        let AVOID_TOLLS = false;
+        let DARK_MODE = false;
+        let tileLayer = null;
+
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([0, 0], 2); // Start zoomed out until GPS hits
+
+        // CartoDB Positron (Uber-like clean tiles)
+        tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20, subdomains: 'abcd',
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        // Icons
+        const userIcon = L.divIcon({ className: 'user-marker', iconSize: [20, 20] });
+        const destIcon = L.divIcon({ 
+            html: `<div class="bg-black w-4 h-4 border-2 border-white shadow-lg"></div>`, 
+            className: 'dest-marker', iconSize: [16, 16], iconAnchor: [8, 8] 
+        });
+        const navIcon = L.divIcon({
+            html: `<div class="nav-arrow-container"><div class="nav-arrow"></div></div>`,
+            className: 'nav-marker', iconSize: [20, 20], iconAnchor: [10, 10]
+        });
+
+        // Layers
+        let userMarker = null;
+        let destMarker = null;
+        let routeLayer = null;
+        
+        // Navigation State
+        let currentRouteSteps = [];
+        let currentRouteGeometry = [];
+        let activeDestination = null;
+
+        // UI References
+        const homeState = document.getElementById('home-state');
+        const searchState = document.getElementById('search-state');
+        const previewSheet = document.getElementById('route-preview-sheet');
+        const navTopBar = document.getElementById('nav-top-bar');
+        const navBottomBar = document.getElementById('nav-bottom-bar');
+        const navReportBtn = document.getElementById('nav-report-btn');
+        const reportMenu = document.getElementById('report-menu');
+        const headerUi = document.getElementById('header-ui');
+        const destInput = document.getElementById('destination-input');
+        const suggestionsList = document.getElementById('suggestions-list');
+
+        // --- 1.1 INITIALIZE GPS ---
+        async function initLocation() {
+            showToast("Locating you...");
+
+            // Request permissions explicitly for Android
+            if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Geolocation) {
+                try {
+                    const permissionStatus = await Capacitor.Plugins.Geolocation.checkPermissions();
+                    if (permissionStatus.location !== 'granted') {
+                        await Capacitor.Plugins.Geolocation.requestPermissions();
+                    }
+                } catch (e) {
+                    console.error("Error requesting permissions", e);
+                }
+            }
+
+            if ("geolocation" in navigator) {
+                // High accuracy is crucial for navigation
+                WATCH_ID = navigator.geolocation.watchPosition(
+                    updatePosition, 
+                    locationError, 
+                    { 
+                        enableHighAccuracy: true, 
+                        timeout: 10000, 
+                        maximumAge: 0 
+                    }
+                );
+                
+                // Listen for device orientation for compass heading
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            } else {
+                showToast("Geolocation is not supported by your browser");
+            }
+        }
+
+        function handleOrientation(event) {
+            // alpha is the compass direction the device is facing in degrees
+            let heading = event.alpha;
+            
+            // Webkit browsers use webkitCompassHeading
+            if (event.webkitCompassHeading) {
+                heading = event.webkitCompassHeading;
+            }
+
+            if (heading !== null) {
+                // Rotate the arrow icon
+                const arrowEl = document.querySelector('.nav-arrow-container');
+                if (arrowEl) {
+                    // Adjust rotation based on map rotation if needed, but for now just rotate icon
+                    arrowEl.style.transform = `rotate(${heading}deg)`;
+                }
+            }
+        }
+
+        function updatePosition(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            // On first location found
+            if (!CURRENT_LOCATION) {
+                showToast("Location found");
+                map.setView([lat, lng], 15);
+                document.querySelector('input[value="Current Location"]').value = "Your Location";
+            }
+
+            CURRENT_LOCATION = [lat, lng];
+
+            // Update User Marker
+            if (!userMarker) {
+                userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+            } else {
+                userMarker.setLatLng([lat, lng]);
+            }
+            
+            // If we have GPS heading (speed > 0 usually), use it over compass
+            if (position.coords.heading && position.coords.speed > 1) {
+                 const arrowEl = document.querySelector('.nav-arrow-container');
+                 if (arrowEl) arrowEl.style.transform = `rotate(${position.coords.heading}deg)`;
+            }
+
+            // If Navigation is active, update nav logic
+            if (navBottomBar.classList.contains('translate-y-0')) {
+                 handleNavigationUpdate(position);
+            }
+        }
+
+        function recenterMap() {
+            if (CURRENT_LOCATION) {
+                map.setView(CURRENT_LOCATION, 18, { animate: true });
+                // Hide button again
+                document.getElementById('recenter-btn').classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                showToast("Location not found yet");
+            }
+        }
+
+        // Show re-center button when map is dragged
+        map.on('dragstart', () => {
+            document.getElementById('recenter-btn').classList.remove('opacity-0', 'pointer-events-none');
+        });
+
+        function locationError(err) {
+            console.warn("Location error: ", err);
+            let msg = "Location error.";
+            
+            // Specific error handling for permissions
+            switch(err.code) {
+                case err.PERMISSION_DENIED:
+                    msg = "Location denied. Please enable 'Always' or 'While Using' in settings.";
+                    break;
+                case err.POSITION_UNAVAILABLE:
+                    msg = "GPS signal weak or unavailable.";
+                    break;
+                case err.TIMEOUT:
+                    msg = "Locating timed out. Retrying...";
+                    break;
+            }
+            
+            // Only show error if we haven't found location yet or if it's a permission issue
+            if(!CURRENT_LOCATION || err.code === err.PERMISSION_DENIED) {
+                showToast(msg);
+            }
+        }
+
+        // --- 1.2 SCREEN WAKE LOCK (Keep screen on while driving) ---
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    WAKE_LOCK = await navigator.wakeLock.request('screen');
+                    console.log('Screen Wake Lock active');
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+        }
+
+        function releaseWakeLock() {
+            if (WAKE_LOCK !== null) {
+                WAKE_LOCK.release()
+                    .then(() => {
+                        WAKE_LOCK = null;
+                        console.log('Screen Wake Lock released');
+                    });
+            }
+        }
+
+        // Handle visibility change to re-acquire lock if user tabs out and back
+        document.addEventListener('visibilitychange', async () => {
+            if (WAKE_LOCK !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
+        // Start immediately
+        initLocation();
+
+        // --- 2. SEARCH LOGIC ---
+        let debounceTimer;
+        destInput.addEventListener('input', (e) => {
+            const query = e.target.value;
+            clearTimeout(debounceTimer);
+            if (query.length < 3) return;
+            debounceTimer = setTimeout(() => fetchAddress(query), 500);
+        });
+
+        async function fetchAddress(query) {
+            try {
+                // Bias search towards current location if available
+                let viewbox = '';
+                if (CURRENT_LOCATION) {
+                    // Rough bounding box around user
+                    const b = 1.0; // ~69 miles box
+                    viewbox = `&viewbox=${CURRENT_LOCATION[1]-b},${CURRENT_LOCATION[0]+b},${CURRENT_LOCATION[1]+b},${CURRENT_LOCATION[0]-b}`;
+                }
+
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewbox}`);
+                const data = await res.json();
+                renderSuggestions(data);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderSuggestions(results) {
+            suggestionsList.innerHTML = '';
+            if (results.length === 0) {
+                 suggestionsList.innerHTML = '<div class="p-4 text-gray-400 text-center text-sm">No places found</div>';
+                 return;
+            }
+            results.forEach(place => {
+                const name = place.display_name.split(',')[0];
+                const div = document.createElement('div');
+                div.className = 'flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition';
+                div.onclick = () => selectPresetDestination(name, place.lat, place.lon);
+                div.innerHTML = `
+                    <div class="bg-gray-100 p-2 rounded-full mr-4"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i></div>
+                    <div class="overflow-hidden">
+                        <div class="font-semibold text-gray-900 truncate">${name}</div>
+                        <div class="text-xs text-gray-500 truncate">${place.display_name}</div>
+                    </div>
+                `;
+                suggestionsList.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        // --- 3. UI STATE TRANSITIONS ---
+        function goToSearchState() {
+            homeState.classList.add('translate-y-full');
+            headerUi.classList.add('opacity-0', 'pointer-events-none');
+            searchState.classList.remove('translate-y-full');
+            setTimeout(() => destInput.focus(), 300);
+        }
+
+        function goBackToHome() {
+            searchState.classList.add('translate-y-full');
+            homeState.classList.remove('translate-y-full');
+            headerUi.classList.remove('opacity-0', 'pointer-events-none');
+            resetMap();
+        }
+
+        function selectPresetDestination(name, lat=null, lon=null) {
+            if (!lat || !lon) {
+                // Handle fake presets logic only if real lat/lon not provided
+                // For a "Functional" app, we ideally want real coordinates for presets too.
+                // But for "Home" button we might just mock or error.
+                if (name === "Home") { showToast("Please search for an address"); return; }
+            }
+
+            searchState.classList.add('translate-y-full');
+            headerUi.classList.add('opacity-0', 'pointer-events-none'); 
+            homeState.classList.add('translate-y-full'); 
+            
+            // 1. Set Active Destination
+            activeDestination = { name, lat, lon };
+
+            // 2. Fetch & Draw Real Route
+            fetchRoute(lat, lon);
+            
+            // 3. Show Preview UI (Filled with real data later)
+            document.getElementById('preview-dest-name').innerText = name;
+            previewSheet.classList.remove('translate-y-full');
+        }
+
+        // --- 4. MAP & ROUTING LOGIC (OSRM) ---
+        async function fetchRoute(destLat, destLon) {
+            if (!CURRENT_LOCATION) {
+                showToast("Waiting for your location...");
+                return;
+            }
+
+            const startLng = CURRENT_LOCATION[1];
+            const startLat = CURRENT_LOCATION[0];
+
+            try {
+                // Call OSRM API (Driving profile)
+                // Format: {lng},{lat};{lng},{lat}
+                const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${destLon},${destLat}?overview=full&geometries=geojson&steps=true`;
+                
+                showToast("Calculating route...");
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code !== "Ok") {
+                    showToast("Could not find a route.");
+                    return;
+                }
+
+                const route = data.routes[0];
+                const geometry = route.geometry;
+                currentRouteSteps = route.legs[0].steps; // Save instructions
+                
+                // Decode route stats
+                const durationMins = Math.round(route.duration / 60);
+                
+                let distanceDisplay = "";
+                let unitDisplay = "";
+
+                if (USE_METRIC) {
+                    distanceDisplay = (route.distance / 1000).toFixed(1);
+                    unitDisplay = "km";
+                } else {
+                    distanceDisplay = (route.distance / 1609.34).toFixed(1);
+                    unitDisplay = "miles";
+                }
+                
+                // Update UI with REAL stats
+                const eta = new Date(Date.now() + route.duration * 1000);
+                document.querySelector('#route-preview-sheet .text-green-600').innerText = durationMins;
+                document.querySelectorAll('#route-preview-sheet .text-2xl')[1].innerText = distanceDisplay; // Distance
+                document.querySelectorAll('#route-preview-sheet .text-xs')[1].innerText = unitDisplay; // Unit Label
+                document.querySelectorAll('#route-preview-sheet .text-2xl')[2].innerText = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                document.getElementById('eta-display').innerText = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                // Draw Route on Map
+                drawRouteOnMap(geometry, destLat, destLon);
+
+            } catch (error) {
+                console.error("Routing error:", error);
+                showToast("Error connecting to routing service");
+            }
+        }
+
+        function drawRouteOnMap(geojson, destLat, destLon) {
+            if (routeLayer) map.removeLayer(routeLayer);
+            if (destMarker) map.removeLayer(destMarker);
+
+            // Add Dest Marker
+            destMarker = L.marker([destLat, destLon], { icon: destIcon }).addTo(map);
+
+            // Draw Blue Line
+            routeLayer = L.geoJSON(geojson, {
+                style: {
+                    color: '#4a89f3',
+                    weight: 6,
+                    opacity: 0.8,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }
+            }).addTo(map);
+
+            // Fit bounds
+            map.fitBounds(routeLayer.getBounds(), { padding: [50, 50, 300, 50] });
+        }
+
+        function resetMap() {
+            if (routeLayer) map.removeLayer(routeLayer);
+            if (destMarker) map.removeLayer(destMarker);
+            
+            // Switch user icon back to dot
+            if (userMarker) userMarker.setIcon(userIcon);
+            
+            // Reset Arrays
+            currentRouteSteps = [];
+            
+            // UI Reset
+            previewSheet.classList.add('translate-y-full');
+            navTopBar.classList.add('-translate-y-[150%]');
+            navBottomBar.classList.add('translate-y-full');
+            navReportBtn.classList.add('translate-x-[200%]');
+            
+            homeState.classList.remove('translate-y-full');
+            headerUi.classList.remove('opacity-0', 'pointer-events-none');
+            
+            if (CURRENT_LOCATION) map.setView(CURRENT_LOCATION, 15);
+        }
+
+        // --- 5. NAVIGATION MODE (REAL TIME) ---
+        function startNavigation() {
+            if (!currentRouteSteps.length) return;
+
+            // Activate Wake Lock to prevent screen sleep
+            requestWakeLock();
+
+            // Hide Preview, Show Nav UI
+            previewSheet.classList.add('translate-y-full');
+            navTopBar.classList.remove('-translate-y-[150%]');
+            navBottomBar.classList.remove('translate-y-full');
+            navReportBtn.classList.remove('translate-x-[200%]');
+
+            // Update Map View
+            map.setZoom(18);
+            
+            // Change user marker to Arrow
+            if (userMarker) userMarker.setIcon(navIcon);
+
+            showToast("Navigation Active. Drive safely.");
+            
+            // Initial Instruction
+            updateNavUI(currentRouteSteps[0], 0);
+        }
+
+        function handleNavigationUpdate(position) {
+            // This runs whenever GPS updates while in nav mode
+            // We need to calculate which step we are closest to
+            
+            if (!currentRouteSteps.length) return;
+
+            // Simple Logic: Find the first step we haven't passed yet.
+            // In a pro app, we'd project point to line segments. 
+            // Here, we just check distance to the next maneuver point.
+            
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const speed = position.coords.speed || 0; // m/s
+
+            // Update Speed in UI (convert m/s to mph)
+            const mph = Math.round(speed * 2.23694);
+            navBottomBar.querySelector('.text-sm.text-gray-500').innerText = `En route • ${mph} mph`;
+
+            // Center map on user
+            map.panTo([lat, lng], { animate: true });
+            
+            // Rotate Arrow (if heading available)
+            const heading = position.coords.heading;
+            if (heading) {
+                const arrowEl = document.querySelector('.nav-arrow-container');
+                if (arrowEl) arrowEl.style.transform = `rotate(${heading}deg)`;
+            }
+
+            // Find current instruction
+            // We iterate through steps to find the closest maneuver point
+            let closestStep = currentRouteSteps[0];
+            let minDistance = Infinity;
+
+            // (Simplified: Just showing the first step for now because accurate "on-route" detection 
+            // requires complex turf.js geometry logic which is too heavy for one file).
+            // However, we can calculate distance to the NEXT turn.
+            
+            const nextManeuver = currentRouteSteps[0].maneuver.location; // [lng, lat]
+            const distToTurn = getDistance(lat, lng, nextManeuver[1], nextManeuver[0]); // meters
+
+            updateNavUI(currentRouteSteps[0], distToTurn);
+
+            // If very close to turn (< 30m), assume turn complete and shift array (Rough logic)
+            if (distToTurn < 30 && currentRouteSteps.length > 1) {
+                currentRouteSteps.shift(); // Remove current step
+                showToast("Turn complete");
+            }
+        }
+
+        function updateNavUI(step, distanceMeters) {
+            // Convert distance
+            let distDisplay = "";
+            if (USE_METRIC) {
+                if (distanceMeters > 1000) {
+                    distDisplay = (distanceMeters / 1000).toFixed(1) + " km";
+                } else {
+                    distDisplay = Math.round(distanceMeters) + " m";
+                }
+            } else {
+                if (distanceMeters > 1609) {
+                    distDisplay = (distanceMeters / 1609).toFixed(1) + " mi";
+                } else {
+                    distDisplay = Math.round(distanceMeters * 3.28084) + " ft";
+                }
+            }
+
+            // Clean up instruction text
+            let instruction = step.maneuver.type || "Continue";
+            if (step.maneuver.modifier) instruction += " " + step.maneuver.modifier;
+            if (step.name) instruction += " on " + step.name;
+            
+            // OSRM usually provides a 'rotary' or 'turn' type. We try to humanize it.
+            // Often OSRM steps don't have a perfect text description field in v1, 
+            // so we construct a basic one or use maneuver.type.
+            
+            navTopBar.querySelector('.text-sm.text-gray-300').innerText = distDisplay;
+            navTopBar.querySelector('.leading-tight').innerText = capitalize(instruction);
+        }
+
+        function endNavigation() {
+            showToast("Trip ended");
+            releaseWakeLock(); // Let screen sleep again
+            resetMap();
+        }
+
+        // --- 6. UTILS ---
+        function getDistance(lat1, lon1, lat2, lon2) {
+            // Haversine formula for meters
+            const R = 6371e3; // metres
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+
+        function capitalize(s) {
+            return s && s[0].toUpperCase() + s.slice(1);
+        }
+
+        // --- 7. WAZE REPORTING ---
+        function toggleReportMenu() {
+            if(reportMenu.classList.contains('opacity-0')) {
+                reportMenu.classList.remove('opacity-0', 'pointer-events-none', 'scale-90');
+            } else {
+                reportMenu.classList.add('opacity-0', 'pointer-events-none', 'scale-90');
+            }
+        }
+
+        function submitReport(type) {
+            toggleReportMenu();
+            showToast(`Reported ${type} at current location`);
+            if (CURRENT_LOCATION) {
+                const reportIcon = L.divIcon({
+                    html: `<div class="bg-orange-500 text-white p-1 rounded-full shadow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>`,
+                    className: '', iconSize: [24, 24]
+                });
+                L.marker(CURRENT_LOCATION, {icon: reportIcon}).addTo(map);
+            }
+        }
+
+        // --- 8. SETTINGS LOGIC ---
+        function openSettings() {
+            document.getElementById('settings-state').classList.remove('translate-x-full');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-state').classList.add('translate-x-full');
+        }
+
+        function toggleDarkMode() {
+            DARK_MODE = !DARK_MODE;
+            const body = document.body;
+            const html = document.documentElement;
+            
+            if (DARK_MODE) {
+                html.classList.add('dark');
+                // Switch to Dark Matter tiles
+                tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
+            } else {
+                html.classList.remove('dark');
+                // Switch back to Positron
+                tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
+            }
+        }
+
+        // --- 9. OFFLINE MAPS LOGIC ---
+        function openOfflineMaps() {
+            document.getElementById('offline-maps-modal').classList.remove('translate-y-full');
+        }
+
+        function closeOfflineMaps() {
+            document.getElementById('offline-maps-modal').classList.add('translate-y-full');
+        }
+
+        async function searchOfflineRegion() {
+            const query = document.getElementById('offline-search-input').value;
+            if (query.length < 3) return;
+
+            const resultsDiv = document.getElementById('offline-search-results');
+            resultsDiv.innerHTML = '<div class="text-center text-gray-500 p-2">Searching...</div>';
+
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=3`);
+                const data = await res.json();
+                
+                resultsDiv.innerHTML = '';
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<div class="text-center text-gray-500 p-2">No regions found</div>';
+                    return;
+                }
+
+                data.forEach(place => {
+                    const name = place.display_name.split(',')[0];
+                    const div = document.createElement('div');
+                    div.className = 'bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex justify-between items-center';
+                    div.innerHTML = `
+                        <div>
+                            <div class="font-bold text-gray-900 dark:text-white">${name}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 truncate w-48">${place.display_name}</div>
+                        </div>
+                        <button onclick="downloadRegion('${name}', '${place.lat}', '${place.lon}')" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 p-2 rounded-full transition">
+                            <i data-lucide="download" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
+                        </button>
+                    `;
+                    resultsDiv.appendChild(div);
+                });
+                lucide.createIcons();
+
+            } catch (e) {
+                console.error(e);
+                resultsDiv.innerHTML = '<div class="text-center text-red-500 p-2">Error searching</div>';
+            }
+        }
+
+        function downloadRegion(name, lat, lon) {
+            showToast(`Downloading map for ${name}...`);
+            
+            // Simulate download progress
+            setTimeout(() => {
+                showToast(`${name} downloaded successfully`);
+                addDownloadedMap(name);
+                document.getElementById('offline-search-results').innerHTML = '';
+                document.getElementById('offline-search-input').value = '';
+            }, 2500);
+        }
+
+        function addDownloadedMap(name) {
+            const list = document.getElementById('downloaded-maps-list');
+            const div = document.createElement('div');
+            div.className = 'bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center';
+            div.innerHTML = `
+                <div>
+                    <div class="font-bold text-gray-900 dark:text-white">${name}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">~25 MB • Expires in 30 days</div>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-full">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+            `;
+            list.prepend(div);
+            lucide.createIcons();
+        }
+
+        function setUnits(unit) {
+            USE_METRIC = (unit === 'km');
+            document.getElementById('unit-mi').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition" : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
+            document.getElementById('unit-km').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition" : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
+            showToast(`Units set to ${USE_METRIC ? 'Kilometers' : 'Miles'}`);
+        }
+
+        function toggleVoice() {
+            VOICE_ENABLED = !VOICE_ENABLED;
+            showToast(`Voice Navigation ${VOICE_ENABLED ? 'Enabled' : 'Disabled'}`);
+        }
+
+        function toggleTolls() {
+            AVOID_TOLLS = !AVOID_TOLLS;
+            showToast(`Avoid Tolls ${AVOID_TOLLS ? 'On' : 'Off'}`);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 4000);
+        }
+
+    </script>
+</body>
+</html>

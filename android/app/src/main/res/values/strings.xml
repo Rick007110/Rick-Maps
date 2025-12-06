@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rick Maps</string>
+    <string name="title_activity_main">Rick Maps</string>
+    <string name="package_name">com.rick007110.rickmaps</string>
+    <string name="custom_url_scheme">com.rick007110.rickmaps</string>
+</resources>
