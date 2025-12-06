@@ -99,6 +99,48 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
+        /* Dark Mode Map Adjustments */
+        .map-tiles-dark {
+            filter: brightness(1.2) contrast(0.9); /* Lighten the dark tiles slightly */
+        }
+        
+        /* Navigation Arrow */
+        .nav-arrow-container {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s linear;
+        }
+        .nav-arrow {
+            width: 0; 
+            height: 0; 
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 20px solid #000; /* Default Black */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            position: relative;
+        }
+        .nav-arrow::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: -10px;
+            width: 20px;
+            height: 5px;
+            background: #000;
+            border-radius: 0 0 5px 5px;
+        }
+        
+        /* Dark Mode Nav Arrow */
+        .dark .nav-arrow {
+            border-bottom-color: #fff; /* White in dark mode */
+        }
+        .dark .nav-arrow::after {
+            background: #fff;
+        }
+
         /* Navigation Arrow */
         .nav-arrow {
             width: 0; 
@@ -127,12 +169,6 @@
         <button class="pointer-events-auto bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition transform active:scale-95" onclick="openSettings()">
             <i data-lucide="menu" class="w-6 h-6 text-black"></i>
         </button>
-        <div class="pointer-events-auto bg-white p-1 rounded-full shadow-lg flex items-center pr-4 transition transform active:scale-95 cursor-pointer">
-            <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-2">
-                <i data-lucide="user" class="w-5 h-5 text-gray-600"></i>
-            </div>
-            <span class="font-semibold text-sm">Guest</span>
-        </div>
     </div>
 
     <!-- Re-center Button -->
@@ -260,7 +296,7 @@
                 <i data-lucide="navigation" class="w-5 h-5 fill-current"></i>
                 <span>Start</span>
             </button>
-            <button class="mt-3 w-full bg-white text-gray-700 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 transition flex items-center justify-center space-x-2">
+            <button onclick="openSteps()" class="mt-3 w-full bg-white text-gray-700 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 transition flex items-center justify-center space-x-2">
                 <i data-lucide="layers" class="w-4 h-4"></i>
                 <span>Steps & More</span>
             </button>
@@ -403,7 +439,10 @@
                         <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
                             <i data-lucide="dollar-sign" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
                         </div>
-                        <span class="font-medium text-gray-900 dark:text-white">Avoid Tolls</span>
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Avoid Tolls</div>
+                            <div class="text-[10px] text-orange-500 font-bold">Experimental, might not work correctly!</div>
+                        </div>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="tolls-toggle" class="sr-only peer" onchange="toggleTolls()">
@@ -413,7 +452,7 @@
             </div>
 
              <div class="text-center text-xs text-gray-400 mt-8">
-                Version 1.0.0 • Go Navigation
+                Version 1.0.0 • Rick Maps
             </div>
         </div>
     </div>
@@ -457,6 +496,32 @@
         </div>
     </div>
 
+    <!-- 8. STEPS & MORE MODAL -->
+    <div id="steps-modal" class="absolute inset-0 z-[60] bg-white dark:bg-dark-bg transform translate-y-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
+            <button onclick="closeSteps()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
+                <i data-lucide="arrow-left" class="w-6 h-6 text-black dark:text-white"></i>
+            </button>
+            <div class="font-bold text-xl dark:text-white">Route Details</div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-bg p-4">
+            <!-- Route Summary -->
+            <div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="steps-duration">-- min</div>
+                    <div class="text-gray-500 dark:text-gray-400 text-sm" id="steps-distance">--</div>
+                </div>
+                <div class="text-gray-900 dark:text-white font-medium" id="steps-dest">Destination</div>
+            </div>
+
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Directions</h3>
+            <div id="steps-list" class="space-y-3">
+                <!-- Steps will be injected here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Error/Status Toast -->
     <div id="toast" class="absolute top-24 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-sm px-6 py-3 rounded-full shadow-xl opacity-0 transition-opacity duration-300 z-50 pointer-events-none flex items-center space-x-2 w-max max-w-[90%]">
         <i data-lucide="info" class="w-4 h-4 text-white"></i>
@@ -485,10 +550,10 @@
         let WAKE_LOCK = null; // New Wake Lock variable
 
         // Settings Globals
-        let USE_METRIC = false;
-        let VOICE_ENABLED = true;
-        let AVOID_TOLLS = false;
-        let DARK_MODE = false;
+        let USE_METRIC = localStorage.getItem('USE_METRIC') === 'true';
+        let VOICE_ENABLED = localStorage.getItem('VOICE_ENABLED') !== 'false'; // Default true
+        let AVOID_TOLLS = localStorage.getItem('AVOID_TOLLS') === 'true';
+        let DARK_MODE = localStorage.getItem('DARK_MODE') === 'true';
         let tileLayer = null;
 
         const map = L.map('map', {
@@ -497,10 +562,45 @@
         }).setView([0, 0], 2); // Start zoomed out until GPS hits
 
         // CartoDB Positron (Uber-like clean tiles)
-        tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        // We initialize with the correct tile layer based on saved preference
+        // Using 'rastertiles/voyager' for a lighter dark mode alternative if needed, 
+        // but user asked for "lighter" map color. 
+        // The standard 'dark_all' is very black. 'voyager' is colorful. 
+        // Let's try a different dark theme or apply CSS filter to lighten it.
+        // Actually, Stadia Alidade Smooth Dark is a bit lighter/blue-ish, but requires API key.
+        // Let's stick to Carto but maybe use a CSS filter on the tile layer container for dark mode to brighten it slightly?
+        // Or switch to 'voyager' which is day/night neutral? No, user wants dark mode.
+        // Let's try applying a CSS filter to the map container when in dark mode to invert/hue-rotate or just brightness.
+        // A simple fix for "too dark" is to use a different provider or just increase brightness via CSS.
+        
+        const tileUrl = DARK_MODE 
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+        tileLayer = L.tileLayer(tileUrl, {
             maxZoom: 20, subdomains: 'abcd',
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            className: DARK_MODE ? 'map-tiles-dark' : '' // Add class for CSS filtering
         }).addTo(map);
+
+        // Apply Dark Mode Class immediately if saved
+        if (DARK_MODE) {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Apply Settings to UI Controls
+        function loadSettingsUI() {
+            document.getElementById('dark-mode-toggle').checked = DARK_MODE;
+            document.getElementById('voice-toggle').checked = VOICE_ENABLED;
+            document.getElementById('tolls-toggle').checked = AVOID_TOLLS;
+            
+            // Update Unit Buttons
+            document.getElementById('unit-mi').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition" : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
+            document.getElementById('unit-km').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition" : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
+        }
+        
+        // Call immediately
+        loadSettingsUI();
 
         // Icons
         const userIcon = L.divIcon({ className: 'user-marker', iconSize: [20, 20] });
@@ -520,6 +620,7 @@
         
         // Navigation State
         let currentRouteSteps = [];
+        let currentRouteSummary = { duration: 0, distance: 0 }; // Store route stats
         let currentRouteGeometry = [];
         let activeDestination = null;
 
@@ -792,7 +893,11 @@
             try {
                 // Call OSRM API (Driving profile)
                 // Format: {lng},{lat};{lng},{lat}
-                const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${destLon},${destLat}?overview=full&geometries=geojson&steps=true`;
+                let url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${destLon},${destLat}?overview=full&geometries=geojson&steps=true`;
+                
+                if (AVOID_TOLLS) {
+                    url += '&exclude=toll';
+                }
                 
                 showToast("Calculating route...");
                 const response = await fetch(url);
@@ -806,6 +911,7 @@
                 const route = data.routes[0];
                 const geometry = route.geometry;
                 currentRouteSteps = route.legs[0].steps; // Save instructions
+                currentRouteSummary = { duration: route.duration, distance: route.distance }; // Save summary
                 
                 // Decode route stats
                 const durationMins = Math.round(route.duration / 60);
@@ -826,9 +932,13 @@
                 document.querySelector('#route-preview-sheet .text-green-600').innerText = durationMins;
                 document.querySelectorAll('#route-preview-sheet .text-2xl')[1].innerText = distanceDisplay; // Distance
                 document.querySelectorAll('#route-preview-sheet .text-xs')[1].innerText = unitDisplay; // Unit Label
-                document.querySelectorAll('#route-preview-sheet .text-2xl')[2].innerText = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                // 24h Time Format
+                const timeStr = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
+                document.querySelectorAll('#route-preview-sheet .text-2xl')[2].innerText = timeStr;
+                document.querySelectorAll('#route-preview-sheet .text-xs')[2].innerText = "ETA"; // Clear AM/PM, show ETA label
 
-                document.getElementById('eta-display').innerText = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                document.getElementById('eta-display').innerText = timeStr;
 
                 // Draw Route on Map
                 drawRouteOnMap(geometry, destLat, destLon);
@@ -993,6 +1103,95 @@
             resetMap();
         }
 
+        // --- 8. STEPS MODAL LOGIC ---
+        function openSteps() {
+            const modal = document.getElementById('steps-modal');
+            const list = document.getElementById('steps-list');
+            
+            // Populate Summary
+            if (currentRouteSummary) {
+                const mins = Math.round(currentRouteSummary.duration / 60);
+                document.getElementById('steps-duration').innerText = mins + " min";
+                
+                let distStr = "";
+                if (USE_METRIC) {
+                    distStr = (currentRouteSummary.distance / 1000).toFixed(1) + " km";
+                } else {
+                    distStr = (currentRouteSummary.distance / 1609.34).toFixed(1) + " miles";
+                }
+                document.getElementById('steps-distance').innerText = distStr;
+            }
+            
+            if (activeDestination) {
+                document.getElementById('steps-dest').innerText = activeDestination.name;
+            }
+
+            // Populate List
+            list.innerHTML = "";
+            
+            if (!currentRouteSteps || currentRouteSteps.length === 0) {
+                list.innerHTML = "<div class='text-center text-gray-400 py-8'>No route details available</div>";
+            } else {
+                currentRouteSteps.forEach((step, index) => {
+                    // Format Instruction
+                    let instruction = step.maneuver.type || "Continue";
+                    if (step.maneuver.modifier) instruction += " " + step.maneuver.modifier;
+                    if (step.name) instruction += " on " + step.name;
+                    instruction = capitalize(instruction);
+
+                    // Format Distance
+                    let dist = "";
+                    if (USE_METRIC) {
+                        if (step.distance > 1000) {
+                            dist = (step.distance / 1000).toFixed(1) + " km";
+                        } else {
+                            dist = Math.round(step.distance) + " m";
+                        }
+                    } else {
+                        if (step.distance > 1609) {
+                            dist = (step.distance / 1609).toFixed(1) + " mi";
+                        } else {
+                            dist = Math.round(step.distance * 3.28084) + " ft";
+                        }
+                    }
+
+                    // Icon Logic (Simple mapping)
+                    let icon = "arrow-up";
+                    const m = step.maneuver;
+                    if (m.type === "turn") {
+                        if (m.modifier.includes("left")) icon = "arrow-left";
+                        if (m.modifier.includes("right")) icon = "arrow-right";
+                    } else if (m.type === "roundabout" || m.type === "rotary") {
+                        icon = "refresh-cw"; 
+                    } else if (m.type === "arrive") {
+                        icon = "map-pin";
+                    }
+
+                    const item = `
+                        <div class="flex items-start space-x-3 p-3 bg-white dark:bg-dark-surface rounded-lg border border-gray-100 dark:border-gray-700">
+                            <div class="mt-1 text-gray-400 dark:text-gray-500">
+                                <i data-lucide="${icon}" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-800 dark:text-gray-200 leading-snug">${instruction}</div>
+                                <div class="text-xs text-gray-400 mt-1">${dist}</div>
+                            </div>
+                        </div>
+                    `;
+                    list.innerHTML += item;
+                });
+                
+                // Re-render icons
+                lucide.createIcons();
+            }
+
+            modal.classList.remove('translate-y-full');
+        }
+
+        function closeSteps() {
+            document.getElementById('steps-modal').classList.add('translate-y-full');
+        }
+
         // --- 6. UTILS ---
         function getDistance(lat1, lon1, lat2, lon2) {
             // Haversine formula for meters
@@ -1046,6 +1245,7 @@
 
         function toggleDarkMode() {
             DARK_MODE = !DARK_MODE;
+            localStorage.setItem('DARK_MODE', DARK_MODE);
             const body = document.body;
             const html = document.documentElement;
             
@@ -1053,10 +1253,14 @@
                 html.classList.add('dark');
                 // Switch to Dark Matter tiles
                 tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
+                // Add filter class
+                tileLayer.getContainer().classList.add('map-tiles-dark');
             } else {
                 html.classList.remove('dark');
                 // Switch back to Positron
                 tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
+                // Remove filter class
+                tileLayer.getContainer().classList.remove('map-tiles-dark');
             }
         }
 
@@ -1140,19 +1344,30 @@
 
         function setUnits(unit) {
             USE_METRIC = (unit === 'km');
+            localStorage.setItem('USE_METRIC', USE_METRIC);
             document.getElementById('unit-mi').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition" : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
             document.getElementById('unit-km').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition" : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
             showToast(`Units set to ${USE_METRIC ? 'Kilometers' : 'Miles'}`);
+
+            if (activeDestination) {
+                fetchRoute(activeDestination.lat, activeDestination.lon);
+            }
         }
 
         function toggleVoice() {
             VOICE_ENABLED = !VOICE_ENABLED;
+            localStorage.setItem('VOICE_ENABLED', VOICE_ENABLED);
             showToast(`Voice Navigation ${VOICE_ENABLED ? 'Enabled' : 'Disabled'}`);
         }
 
         function toggleTolls() {
             AVOID_TOLLS = !AVOID_TOLLS;
+            localStorage.setItem('AVOID_TOLLS', AVOID_TOLLS);
             showToast(`Avoid Tolls ${AVOID_TOLLS ? 'On' : 'Off'}`);
+
+            if (activeDestination) {
+                fetchRoute(activeDestination.lat, activeDestination.lon);
+            }
         }
 
         function showToast(msg) {
