@@ -1,1630 +1,1720 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <!-- PWA Settings -->
-    <meta name="theme-color" content="#ffffff">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
-    
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png" />
+
     <title>Rick Maps</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            bg: '#121212',
-                            surface: '#1e1e1e',
-                            border: '#333333'
-                        }
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              dark: {
+                bg: "#121212",
+                surface: "#1e1e1e",
+                border: "#333333",
+              },
+            },
+          },
+        },
+      };
     </script>
-    
+
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
-        }
+      body {
+        font-family: "Inter", sans-serif;
+        overflow: hidden;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+      }
 
-        #map {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-        }
+      #map {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+      }
 
-        /* Animations */
-        .slide-up { transform: translateY(0); }
-        .slide-down { transform: translateY(100%); }
-        .fade-in { opacity: 1; pointer-events: auto; }
-        .fade-out { opacity: 0; pointer-events: none; }
+      /* Animations */
+      .slide-up {
+        transform: translateY(0);
+      }
+      .slide-down {
+        transform: translateY(100%);
+      }
+      .fade-in {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
 
-        .transition-all-300 {
-            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
+      .transition-all-300 {
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
 
-        /* Hide scrollbar */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      /* Hide scrollbar */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
 
-        /* User Location Pulse */
-        @keyframes pulse-ring {
-            0% { transform: scale(0.33); }
-            80%, 100% { opacity: 0; }
+      /* User Location Pulse */
+      @keyframes pulse-ring {
+        0% {
+          transform: scale(0.33);
         }
-        .user-marker { position: relative; }
-        .user-marker::before {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 50%;
-            z-index: -1;
-            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        80%,
+        100% {
+          opacity: 0;
         }
-        .user-marker::after {
-            content: '';
-            position: absolute;
-            left: 0; top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
+      }
+      .user-marker {
+        position: relative;
+      }
+      .user-marker::before {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 50%;
+        z-index: -1;
+        animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+      }
+      .user-marker::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
 
-        /* Dark Mode Map Adjustments */
-        .map-tiles-dark {
-            filter: brightness(1.2) contrast(0.9); /* Lighten the dark tiles slightly */
-        }
-        
-        /* Navigation Arrow */
-        .nav-arrow-container {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.1s linear;
-        }
-        .nav-arrow {
-            width: 0; 
-            height: 0; 
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 20px solid #000; /* Default Black */
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-            position: relative;
-        }
-        .nav-arrow::after {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: -10px;
-            width: 20px;
-            height: 5px;
-            background: #000;
-            border-radius: 0 0 5px 5px;
-        }
-        
-        /* Dark Mode Nav Arrow */
-        .dark .nav-arrow {
-            border-bottom-color: #fff; /* White in dark mode */
-        }
-        .dark .nav-arrow::after {
-            background: #fff;
-        }
+      /* Dark Mode Map Adjustments */
+      .map-tiles-dark {
+        filter: brightness(1.2) contrast(0.9); /* Lighten the dark tiles slightly */
+      }
 
-        /* Navigation Arrow */
-        .nav-arrow {
-            width: 0; 
-            height: 0; 
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 20px solid #000;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
-        }
+      /* Navigation Arrow */
+      .nav-arrow-container {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.1s linear;
+      }
+      .nav-arrow {
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-bottom: 20px solid #000; /* Default Black */
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        position: relative;
+      }
+      .nav-arrow::after {
+        content: "";
+        position: absolute;
+        top: 20px;
+        left: -10px;
+        width: 20px;
+        height: 5px;
+        background: #000;
+        border-radius: 0 0 5px 5px;
+      }
 
-        /* Compass/Bearing rotation for nav arrow */
-        .nav-arrow-container {
-            transition: transform 0.5s ease-out;
-        }
+      /* Dark Mode Nav Arrow */
+      .dark .nav-arrow {
+        border-bottom-color: #fff; /* White in dark mode */
+      }
+      .dark .nav-arrow::after {
+        background: #fff;
+      }
+
+      /* Navigation Arrow */
+      .nav-arrow {
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-bottom: 20px solid #000;
+        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+      }
+
+      /* Compass/Bearing rotation for nav arrow */
+      .nav-arrow-container {
+        transition: transform 0.5s ease-out;
+      }
     </style>
-</head>
-<body class="bg-gray-100 h-screen w-screen relative">
-
+  </head>
+  <body class="bg-gray-100 h-screen w-screen relative">
     <!-- MAP CONTAINER -->
     <div id="map"></div>
 
     <!-- === UI LAYER === -->
-    
+
     <!-- 1. HEADER (Menu & Profile) - Only visible in Home State -->
     <div id="header-ui" class="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-300 safe-top">
-        <button class="pointer-events-auto bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition transform active:scale-95" onclick="openSettings()">
-            <i data-lucide="menu" class="w-6 h-6 text-black"></i>
-        </button>
+      <button class="pointer-events-auto bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition transform active:scale-95" onclick="openSettings()">
+        <i data-lucide="menu" class="w-6 h-6 text-black"></i>
+      </button>
     </div>
 
     <!-- Re-center Button -->
-    <button id="recenter-btn" onclick="recenterMap()" class="absolute bottom-32 right-4 z-20 bg-white dark:bg-dark-surface p-3 rounded-full shadow-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition transform active:scale-95 opacity-0 pointer-events-none">
-        <i data-lucide="crosshair" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
+    <button
+      id="recenter-btn"
+      onclick="recenterMap()"
+      class="absolute bottom-32 right-4 z-20 bg-white dark:bg-dark-surface p-3 rounded-full shadow-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition transform active:scale-95 opacity-0 pointer-events-none"
+    >
+      <i data-lucide="crosshair" class="w-6 h-6 text-blue-600 dark:text-blue-400"></i>
     </button>
 
     <!-- 2. HOME STATE (Floating Search) -->
     <div id="home-state" class="absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] p-5 pb-8 transition-transform duration-300">
-        <h2 class="text-xl font-bold mb-4 ml-1">Where to?</h2>
-        
-        <div onclick="goToSearchState()" class="bg-gray-100 rounded-lg p-3 flex items-center shadow-sm cursor-pointer active:scale-[0.99] transition-transform">
-            <i data-lucide="search" class="w-5 h-5 text-black mr-3 ml-1"></i>
-            <span class="text-lg font-semibold text-gray-800">Search destination</span>
-        </div>
+      <h2 class="text-xl font-bold mb-4 ml-1">Where to?</h2>
 
-        <!-- Shortcuts -->
-        <div id="home-shortcuts" class="mt-6 flex space-x-4 overflow-x-auto no-scrollbar pb-2">
-            <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Home')">
-                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                    <i data-lucide="home" class="w-6 h-6 text-black"></i>
-                </div>
-                <span class="text-xs font-medium">Home</span>
-            </div>
-            <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Work')">
-                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                    <i data-lucide="briefcase" class="w-6 h-6 text-black"></i>
-                </div>
-                <span class="text-xs font-medium">Work</span>
-            </div>
-            <!-- Favorites will be injected here -->
+      <div onclick="goToSearchState()" class="bg-gray-100 rounded-lg p-3 flex items-center shadow-sm cursor-pointer active:scale-[0.99] transition-transform">
+        <i data-lucide="search" class="w-5 h-5 text-black mr-3 ml-1"></i>
+        <span class="text-lg font-semibold text-gray-800">Search destination</span>
+      </div>
+
+      <!-- Shortcuts -->
+      <div id="home-shortcuts" class="mt-6 flex space-x-4 overflow-x-auto no-scrollbar pb-2">
+        <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Home')">
+          <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+            <i data-lucide="home" class="w-6 h-6 text-black"></i>
+          </div>
+          <span class="text-xs font-medium">Home</span>
         </div>
+        <div class="flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer" onclick="selectPresetDestination('Work')">
+          <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+            <i data-lucide="briefcase" class="w-6 h-6 text-black"></i>
+          </div>
+          <span class="text-xs font-medium">Work</span>
+        </div>
+        <!-- Favorites will be injected here -->
+      </div>
     </div>
 
     <!-- 3. SEARCH STATE (Full Screen Overlay) -->
     <div id="search-state" class="absolute inset-0 z-40 bg-white transform translate-y-full transition-transform duration-300 flex flex-col">
-        <div class="p-4 shadow-sm relative z-10 bg-white">
-            <button onclick="goBackToHome()" class="absolute left-4 top-4 p-2 -ml-2 hover:bg-gray-100 rounded-full">
-                <i data-lucide="arrow-left" class="w-6 h-6 text-black"></i>
-            </button>
-            <div class="text-center font-semibold text-lg pt-1">Set Destination</div>
+      <div class="p-4 shadow-sm relative z-10 bg-white">
+        <button onclick="goBackToHome()" class="absolute left-4 top-4 p-2 -ml-2 hover:bg-gray-100 rounded-full">
+          <i data-lucide="arrow-left" class="w-6 h-6 text-black"></i>
+        </button>
+        <div class="text-center font-semibold text-lg pt-1">Set Destination</div>
+      </div>
+
+      <div class="px-5 pt-2 pb-4 relative">
+        <div class="flex items-center mb-3 relative z-20">
+          <div class="w-2 h-2 bg-blue-500 rounded-full mr-4 ml-1 ring-4 ring-blue-100"></div>
+          <input type="text" value="Current Location" class="w-full bg-gray-50 p-3 rounded-lg text-gray-500 text-sm font-medium border-none" disabled />
         </div>
 
-        <div class="px-5 pt-2 pb-4 relative">
-            <div class="flex items-center mb-3 relative z-20">
-                <div class="w-2 h-2 bg-blue-500 rounded-full mr-4 ml-1 ring-4 ring-blue-100"></div>
-                <input type="text" value="Current Location" class="w-full bg-gray-50 p-3 rounded-lg text-gray-500 text-sm font-medium border-none" disabled>
-            </div>
-            
-            <div class="flex items-center relative z-20">
-                <div class="w-2 h-2 bg-black rounded-none mr-4 ml-1"></div>
-                <input type="text" id="destination-input" placeholder="Enter destination" class="w-full bg-gray-100 p-3 rounded-lg text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-black transition-all">
-            </div>
-            
-            <!-- Connector Line -->
-            <div class="absolute left-[29px] top-[40px] bottom-[40px] w-0.5 bg-gray-200 z-0"></div>
+        <div class="flex items-center relative z-20">
+          <div class="w-2 h-2 bg-black rounded-none mr-4 ml-1"></div>
+          <input
+            type="text"
+            id="destination-input"
+            placeholder="Enter destination"
+            class="w-full bg-gray-100 p-3 rounded-lg text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-black transition-all"
+          />
         </div>
 
-        <div class="flex-1 overflow-y-auto" id="suggestions-list">
-             <!-- Initial Suggestions -->
-             <div class="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Recent</div>
-             <!-- Dynamic content will be injected here -->
-             <div class="p-4 text-center text-gray-400 text-sm">No recent searches</div>
-        </div>
+        <!-- Connector Line -->
+        <div class="absolute left-[29px] top-[40px] bottom-[40px] w-0.5 bg-gray-200 z-0"></div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto" id="suggestions-list">
+        <!-- Initial Suggestions -->
+        <div class="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Recent</div>
+        <!-- Dynamic content will be injected here -->
+        <div class="p-4 text-center text-gray-400 text-sm">No recent searches</div>
+      </div>
     </div>
 
     <!-- 4. ROUTE PREVIEW (Replaces Vehicle Selection) -->
-    <div id="route-preview-sheet" class="absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300 flex flex-col pb-6">
-        
-        <!-- Drag Handle -->
-        <div class="w-full flex justify-center pt-3 pb-1">
-            <div class="w-12 h-1.5 bg-gray-200 rounded-full"></div>
-        </div>
+    <div
+      id="route-preview-sheet"
+      class="absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300 flex flex-col pb-6"
+    >
+      <!-- Drag Handle -->
+      <div class="w-full flex justify-center pt-3 pb-1">
+        <div class="w-12 h-1.5 bg-gray-200 rounded-full"></div>
+      </div>
 
-        <!-- Destination Info -->
-        <div class="px-6 pt-2 pb-4 border-b border-gray-100">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-900" id="preview-dest-name">Destination</h2>
-                    <p class="text-gray-500 text-sm mt-1" id="preview-route-label">Calculating route...</p>
-                </div>
-                <div class="flex space-x-2">
-                    <button class="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition" onclick="openSaveMenu()">
-                        <i data-lucide="heart" class="w-5 h-5 text-gray-600"></i>
-                    </button>
-                    <div class="bg-gray-100 p-2 rounded-full cursor-pointer" onclick="resetMap()">
-                        <i data-lucide="x" class="w-5 h-5 text-gray-600"></i>
-                    </div>
-                </div>
+      <!-- Destination Info -->
+      <div class="px-6 pt-2 pb-4 border-b border-gray-100">
+        <div class="flex justify-between items-start">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900" id="preview-dest-name">Destination</h2>
+            <p class="text-gray-500 text-sm mt-1" id="preview-route-label">Calculating route...</p>
+          </div>
+          <div class="flex space-x-2">
+            <button class="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition" onclick="openSaveMenu()">
+              <i data-lucide="heart" class="w-5 h-5 text-gray-600"></i>
+            </button>
+            <div class="bg-gray-100 p-2 rounded-full cursor-pointer" onclick="resetMap()">
+              <i data-lucide="x" class="w-5 h-5 text-gray-600"></i>
             </div>
+          </div>
         </div>
+      </div>
 
-        <!-- Travel Mode Selector -->
-        <div class="px-6 py-3 flex space-x-3 border-b border-gray-50">
-            <button id="mode-driving" onclick="setTravelMode('driving')" class="flex-1 py-2 rounded-lg bg-black text-white font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm">
-                <i data-lucide="car" class="w-4 h-4"></i>
-                <span>Drive</span>
-            </button>
-            <button id="mode-cycling" onclick="setTravelMode('cycling')" class="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium text-sm flex items-center justify-center space-x-2 hover:bg-gray-200 transition">
-                <i data-lucide="bike" class="w-4 h-4"></i>
-                <span>Bike</span>
-            </button>
-        </div>
+      <!-- Travel Mode Selector -->
+      <div class="px-6 py-3 flex space-x-3 border-b border-gray-50">
+        <button
+          id="mode-driving"
+          onclick="setTravelMode('driving')"
+          class="flex-1 py-2 rounded-lg bg-black text-white font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm"
+        >
+          <i data-lucide="car" class="w-4 h-4"></i>
+          <span>Drive</span>
+        </button>
+        <button
+          id="mode-cycling"
+          onclick="setTravelMode('cycling')"
+          class="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium text-sm flex items-center justify-center space-x-2 hover:bg-gray-200 transition"
+        >
+          <i data-lucide="bike" class="w-4 h-4"></i>
+          <span>Bike</span>
+        </button>
+      </div>
 
-        <!-- Route Stats -->
-        <div class="p-6 grid grid-cols-3 gap-4 text-center">
-            <div>
-                <div class="text-2xl font-bold text-green-600" id="preview-duration">--</div>
-                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider">min</div>
-            </div>
-            <div class="border-l border-r border-gray-100">
-                <div class="text-2xl font-bold text-gray-800" id="preview-distance">--</div>
-                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider" id="preview-distance-unit">miles</div>
-            </div>
-            <div>
-                <div class="text-2xl font-bold text-gray-800" id="preview-eta">--:--</div>
-                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider" id="preview-eta-label">ETA</div>
-            </div>
+      <!-- Route Stats -->
+      <div class="p-6 grid grid-cols-3 gap-4 text-center">
+        <div>
+          <div class="text-2xl font-bold text-green-600" id="preview-duration">--</div>
+          <div class="text-xs text-gray-500 uppercase font-bold tracking-wider">min</div>
         </div>
+        <div class="border-l border-r border-gray-100">
+          <div class="text-2xl font-bold text-gray-800" id="preview-distance">--</div>
+          <div class="text-xs text-gray-500 uppercase font-bold tracking-wider" id="preview-distance-unit">miles</div>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-gray-800" id="preview-eta">--:--</div>
+          <div class="text-xs text-gray-500 uppercase font-bold tracking-wider" id="preview-eta-label">ETA</div>
+        </div>
+      </div>
 
-        <!-- Actions -->
-        <div class="px-6 pb-2">
-            <button onclick="startNavigation()" class="w-full bg-black text-white py-4 rounded-xl font-bold text-xl hover:bg-gray-800 transition shadow-lg flex items-center justify-center space-x-2 active:scale-[0.98]">
-                <i data-lucide="navigation" class="w-5 h-5 fill-current"></i>
-                <span>Start</span>
-            </button>
-            <button onclick="openSteps()" class="mt-3 w-full bg-white text-gray-700 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 transition flex items-center justify-center space-x-2">
-                <i data-lucide="layers" class="w-4 h-4"></i>
-                <span>Steps & More</span>
-            </button>
-        </div>
+      <!-- Actions -->
+      <div class="px-6 pb-2">
+        <button
+          onclick="startNavigation()"
+          class="w-full bg-black text-white py-4 rounded-xl font-bold text-xl hover:bg-gray-800 transition shadow-lg flex items-center justify-center space-x-2 active:scale-[0.98]"
+        >
+          <i data-lucide="navigation" class="w-5 h-5 fill-current"></i>
+          <span>Start</span>
+        </button>
+        <button
+          onclick="openSteps()"
+          class="mt-3 w-full bg-white text-gray-700 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 transition flex items-center justify-center space-x-2"
+        >
+          <i data-lucide="layers" class="w-4 h-4"></i>
+          <span>Steps & More</span>
+        </button>
+      </div>
     </div>
 
     <!-- 5. NAVIGATION MODE (Turn-by-Turn UI) -->
-    
+
     <!-- Top Bar: Instructions -->
-    <div id="nav-top-bar" class="absolute top-0 left-0 right-0 z-30 bg-black dark:bg-dark-surface text-white p-4 m-4 rounded-xl shadow-2xl transform -translate-y-[150%] transition-transform duration-500 flex items-center safe-top">
-        <div class="bg-white/20 p-3 rounded-lg mr-4">
-            <i data-lucide="arrow-up-right" class="w-8 h-8 text-white"></i>
-        </div>
-        <div>
-            <div class="text-sm text-gray-300 font-medium">500 ft</div>
-            <div class="text-xl font-bold leading-tight">Turn right onto Broadway</div>
-        </div>
+    <div
+      id="nav-top-bar"
+      class="absolute top-0 left-0 right-0 z-30 bg-black dark:bg-dark-surface text-white p-4 m-4 rounded-xl shadow-2xl transform -translate-y-[150%] transition-transform duration-500 flex items-center safe-top"
+    >
+      <div class="bg-white/20 p-3 rounded-lg mr-4">
+        <i data-lucide="arrow-up-right" class="w-8 h-8 text-white"></i>
+      </div>
+      <div>
+        <div class="text-sm text-gray-300 font-medium">500 ft</div>
+        <div class="text-xl font-bold leading-tight">Turn right onto Broadway</div>
+      </div>
     </div>
 
     <!-- Report Button (Waze Style) -->
     <div id="nav-report-btn" class="absolute right-4 top-32 z-30 transform translate-x-[200%] transition-transform duration-500">
-        <button onclick="toggleReportMenu()" class="bg-white dark:bg-dark-surface p-3 rounded-full shadow-lg border-2 border-orange-500 text-orange-500 hover:bg-orange-50 dark:hover:bg-gray-800">
-            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-        </button>
+      <button onclick="toggleReportMenu()" class="bg-white dark:bg-dark-surface p-3 rounded-full shadow-lg border-2 border-orange-500 text-orange-500 hover:bg-orange-50 dark:hover:bg-gray-800">
+        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      </button>
     </div>
 
     <!-- Speedometer (Floating) -->
-    <div id="speedometer" class="absolute bottom-32 left-4 z-30 bg-white dark:bg-dark-surface w-16 h-16 rounded-full shadow-lg flex flex-col items-center justify-center border-4 border-gray-100 dark:border-gray-700 transform translate-y-[400%] transition-transform duration-500">
-        <div class="text-xl font-bold text-gray-900 dark:text-white leading-none" id="speed-value">0</div>
-        <div class="text-[10px] font-bold text-gray-400 uppercase">km/u</div>
+    <div
+      id="speedometer"
+      class="absolute bottom-32 left-4 z-30 bg-white dark:bg-dark-surface w-16 h-16 rounded-full shadow-lg flex flex-col items-center justify-center border-4 border-gray-100 dark:border-gray-700 transform translate-y-[400%] transition-transform duration-500"
+    >
+      <div class="text-xl font-bold text-gray-900 dark:text-white leading-none" id="speed-value">0</div>
+      <div class="text-[10px] font-bold text-gray-400 uppercase">km/u</div>
     </div>
 
     <!-- Report Menu (Modal) -->
-    <div id="report-menu" class="absolute bottom-32 right-4 left-4 z-40 bg-white dark:bg-dark-surface rounded-xl shadow-2xl p-4 transform scale-90 opacity-0 pointer-events-none transition-all duration-200 origin-bottom-right">
-        <h3 class="font-bold text-gray-900 dark:text-white mb-3">Report Incident</h3>
-        <div class="grid grid-cols-3 gap-2">
-            <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Crash')">
-                <div class="bg-red-100 dark:bg-red-900 p-2 rounded-full mb-1 text-red-600 dark:text-red-300"><i data-lucide="car" class="w-5 h-5"></i></div>
-                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Crash</span>
-            </button>
-            <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Police')">
-                <div class="bg-blue-100 dark:bg-blue-900 p-2 rounded-full mb-1 text-blue-600 dark:text-blue-300"><i data-lucide="shield" class="w-5 h-5"></i></div>
-                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Police</span>
-            </button>
-            <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Hazard')">
-                <div class="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-full mb-1 text-yellow-600 dark:text-yellow-300"><i data-lucide="alert-octagon" class="w-5 h-5"></i></div>
-                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Hazard</span>
-            </button>
-        </div>
-        <button onclick="toggleReportMenu()" class="mt-3 w-full py-2 text-sm text-gray-500 dark:text-gray-400 font-medium hover:text-gray-800 dark:hover:text-white">Cancel</button>
+    <div
+      id="report-menu"
+      class="absolute bottom-32 right-4 left-4 z-40 bg-white dark:bg-dark-surface rounded-xl shadow-2xl p-4 transform scale-90 opacity-0 pointer-events-none transition-all duration-200 origin-bottom-right"
+    >
+      <h3 class="font-bold text-gray-900 dark:text-white mb-3">Report Incident</h3>
+      <div class="grid grid-cols-3 gap-2">
+        <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Crash')">
+          <div class="bg-red-100 dark:bg-red-900 p-2 rounded-full mb-1 text-red-600 dark:text-red-300"><i data-lucide="car" class="w-5 h-5"></i></div>
+          <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Crash</span>
+        </button>
+        <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Police')">
+          <div class="bg-blue-100 dark:bg-blue-900 p-2 rounded-full mb-1 text-blue-600 dark:text-blue-300"><i data-lucide="shield" class="w-5 h-5"></i></div>
+          <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Police</span>
+        </button>
+        <button class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-gray-700" onclick="submitReport('Hazard')">
+          <div class="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-full mb-1 text-yellow-600 dark:text-yellow-300"><i data-lucide="alert-octagon" class="w-5 h-5"></i></div>
+          <span class="text-xs font-bold text-gray-600 dark:text-gray-300">Hazard</span>
+        </button>
+      </div>
+      <button onclick="toggleReportMenu()" class="mt-3 w-full py-2 text-sm text-gray-500 dark:text-gray-400 font-medium hover:text-gray-800 dark:hover:text-white">Cancel</button>
     </div>
 
     <!-- Bottom Bar: Status -->
-    <div id="nav-bottom-bar" class="absolute bottom-0 left-0 right-0 z-30 bg-white dark:bg-dark-surface p-4 pb-8 rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="nav-duration">--</div>
-                    <div class="text-xs font-bold text-gray-400">min</div>
-                </div>
-                <div>
-                    <div class="font-bold text-xl text-gray-800 dark:text-white" id="eta-display">--:--</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400" id="nav-distance-speed">--</div>
-                </div>
-            </div>
-            <button onclick="endNavigation()" class="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-6 py-3 rounded-full font-bold text-sm hover:bg-red-100 dark:hover:bg-red-900/50 transition">
-                End Trip
-            </button>
+    <div
+      id="nav-bottom-bar"
+      class="absolute bottom-0 left-0 right-0 z-30 bg-white dark:bg-dark-surface p-4 pb-8 rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="nav-duration">--</div>
+            <div class="text-xs font-bold text-gray-400">min</div>
+          </div>
+          <div>
+            <div class="font-bold text-xl text-gray-800 dark:text-white" id="eta-display">--:--</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400" id="nav-distance-speed">--</div>
+          </div>
         </div>
+        <button
+          onclick="endNavigation()"
+          class="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-6 py-3 rounded-full font-bold text-sm hover:bg-red-100 dark:hover:bg-red-900/50 transition"
+        >
+          End Trip
+        </button>
+      </div>
     </div>
 
     <!-- Save Location Modal -->
     <div id="save-location-modal" class="absolute inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
-        <div class="bg-white w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-6 transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="save-location-content">
-            <h3 class="text-xl font-bold mb-4">Save Location</h3>
-            <div class="space-y-3">
-                <button onclick="saveLocation('Home')" class="w-full flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                    <div class="bg-blue-100 p-2 rounded-full mr-4">
-                        <i data-lucide="home" class="w-5 h-5 text-blue-600"></i>
-                    </div>
-                    <span class="font-bold text-gray-700">Home</span>
-                </button>
-                <button onclick="saveLocation('Work')" class="w-full flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                    <div class="bg-orange-100 p-2 rounded-full mr-4">
-                        <i data-lucide="briefcase" class="w-5 h-5 text-orange-600"></i>
-                    </div>
-                    <span class="font-bold text-gray-700">Work</span>
-                </button>
-                <button onclick="saveLocation('Favorite')" class="w-full flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                    <div class="bg-red-100 p-2 rounded-full mr-4">
-                        <i data-lucide="heart" class="w-5 h-5 text-red-600"></i>
-                    </div>
-                    <span class="font-bold text-gray-700">Add to Favorites</span>
-                </button>
+      <div class="bg-white w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-6 transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="save-location-content">
+        <h3 class="text-xl font-bold mb-4">Save Location</h3>
+        <div class="space-y-3">
+          <button onclick="saveLocation('Home')" class="w-full flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+            <div class="bg-blue-100 p-2 rounded-full mr-4">
+              <i data-lucide="home" class="w-5 h-5 text-blue-600"></i>
             </div>
-            <button onclick="closeSaveMenu()" class="mt-6 w-full py-3 font-bold text-gray-500 hover:text-gray-800">Cancel</button>
+            <span class="font-bold text-gray-700">Home</span>
+          </button>
+          <button onclick="saveLocation('Work')" class="w-full flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+            <div class="bg-orange-100 p-2 rounded-full mr-4">
+              <i data-lucide="briefcase" class="w-5 h-5 text-orange-600"></i>
+            </div>
+            <span class="font-bold text-gray-700">Work</span>
+          </button>
+          <button onclick="saveLocation('Favorite')" class="w-full flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+            <div class="bg-red-100 p-2 rounded-full mr-4">
+              <i data-lucide="heart" class="w-5 h-5 text-red-600"></i>
+            </div>
+            <span class="font-bold text-gray-700">Add to Favorites</span>
+          </button>
         </div>
+        <button onclick="closeSaveMenu()" class="mt-6 w-full py-3 font-bold text-gray-500 hover:text-gray-800">Cancel</button>
+      </div>
     </div>
 
     <!-- 6. SETTINGS STATE -->
     <div id="settings-state" class="absolute inset-0 z-50 bg-white dark:bg-dark-bg transform translate-x-full transition-transform duration-300 flex flex-col">
-        <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
-            <button onclick="closeSettings()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
-                <i data-lucide="arrow-left" class="w-6 h-6 text-black dark:text-white"></i>
-            </button>
-            <div class="font-bold text-xl dark:text-white">Settings</div>
+      <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
+        <button onclick="closeSettings()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
+          <i data-lucide="arrow-left" class="w-6 h-6 text-black dark:text-white"></i>
+        </button>
+        <div class="font-bold text-xl dark:text-white">Settings</div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-bg p-4 space-y-4">
+        <!-- Map Settings -->
+        <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Map Display</h3>
+
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                <i data-lucide="moon" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+              </div>
+              <span class="font-medium text-gray-900 dark:text-white">Dark Mode</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" onchange="toggleDarkMode()" />
+              <div
+                class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black dark:peer-checked:bg-blue-600"
+              ></div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                <i data-lucide="download-cloud" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+              </div>
+              <div>
+                <div class="font-medium text-gray-900 dark:text-white">Offline Maps</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">Download specific areas</div>
+              </div>
+            </div>
+            <button onclick="openOfflineMaps()" class="text-blue-600 dark:text-blue-400 font-bold text-sm">Manage</button>
+          </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-bg p-4 space-y-4">
-            
-            <!-- Map Settings -->
-            <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Map Display</h3>
-                
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center">
-                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
-                            <i data-lucide="moon" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                        </div>
-                        <span class="font-medium text-gray-900 dark:text-white">Dark Mode</span>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" onchange="toggleDarkMode()">
-                        <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black dark:peer-checked:bg-blue-600"></div>
-                    </label>
-                </div>
+        <!-- Navigation Settings -->
+        <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Navigation</h3>
 
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
-                            <i data-lucide="download-cloud" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                        </div>
-                        <div>
-                            <div class="font-medium text-gray-900 dark:text-white">Offline Maps</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">Download specific areas</div>
-                        </div>
-                    </div>
-                    <button onclick="openOfflineMaps()" class="text-blue-600 dark:text-blue-400 font-bold text-sm">Manage</button>
-                </div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                <i data-lucide="volume-2" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+              </div>
+              <span class="font-medium text-gray-900 dark:text-white">Voice Navigation</span>
             </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="voice-toggle" class="sr-only peer" checked onchange="toggleVoice()" />
+              <div
+                class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"
+              ></div>
+            </label>
+          </div>
 
-            <!-- Navigation Settings -->
-            <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Navigation</h3>
-                
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center">
-                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
-                            <i data-lucide="volume-2" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                        </div>
-                        <span class="font-medium text-gray-900 dark:text-white">Voice Navigation</span>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="voice-toggle" class="sr-only peer" checked onchange="toggleVoice()">
-                        <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                    </label>
-                </div>
-
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center">
-                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
-                            <i data-lucide="ruler" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                        </div>
-                        <span class="font-medium text-gray-900 dark:text-white">Units</span>
-                    </div>
-                    <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                        <button id="unit-mi" onclick="setUnits('mi')" class="px-3 py-1 rounded-md text-xs font-bold bg-white dark:bg-gray-600 dark:text-white shadow-sm transition">mi</button>
-                        <button id="unit-km" onclick="setUnits('km')" class="px-3 py-1 rounded-md text-xs font-bold text-gray-500 dark:text-gray-400 transition">km</button>
-                    </div>
-                </div>
-
-                 <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
-                            <i data-lucide="dollar-sign" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                        </div>
-                        <div>
-                            <div class="font-medium text-gray-900 dark:text-white">Avoid Tolls</div>
-                            <div class="text-[10px] text-orange-500 font-bold">Experimental, might not work correctly!</div>
-                        </div>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="tolls-toggle" class="sr-only peer" onchange="toggleTolls()">
-                        <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                </div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                <i data-lucide="ruler" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+              </div>
+              <span class="font-medium text-gray-900 dark:text-white">Units</span>
             </div>
-
-            <!-- Update Section -->
-            <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
-                <div class="flex items-center justify-between" onclick="checkForUpdates(true)">
-                    <div class="flex items-center">
-                        <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
-                            <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
-                        </div>
-                        <span class="font-medium text-gray-900 dark:text-white">Check for Updates</span>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
-                </div>
+            <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button id="unit-mi" onclick="setUnits('mi')" class="px-3 py-1 rounded-md text-xs font-bold bg-white dark:bg-gray-600 dark:text-white shadow-sm transition">mi</button>
+              <button id="unit-km" onclick="setUnits('km')" class="px-3 py-1 rounded-md text-xs font-bold text-gray-500 dark:text-gray-400 transition">km</button>
             </div>
+          </div>
 
-             <div class="text-center text-xs text-gray-400 mt-8" id="version-display">
-                <!-- Version injected by JS -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                <i data-lucide="dollar-sign" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+              </div>
+              <div>
+                <div class="font-medium text-gray-900 dark:text-white">Avoid Tolls</div>
+                <div class="text-[10px] text-orange-500 font-bold">Experimental, might not work correctly!</div>
+              </div>
             </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="tolls-toggle" class="sr-only peer" onchange="toggleTolls()" />
+              <div
+                class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"
+              ></div>
+            </label>
+          </div>
         </div>
+
+        <!-- Update Section -->
+        <div class="bg-white dark:bg-dark-surface rounded-xl shadow-sm p-4">
+          <div class="flex items-center justify-between" onclick="checkForUpdates(true)">
+            <div class="flex items-center">
+              <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full mr-3">
+                <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+              </div>
+              <span class="font-medium text-gray-900 dark:text-white">Check for Updates</span>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+          </div>
+        </div>
+
+        <div class="text-center text-xs text-gray-400 mt-8" id="version-display">
+          <!-- Version injected by JS -->
+        </div>
+      </div>
     </div>
 
     <!-- 7. OFFLINE MAPS MODAL -->
     <div id="offline-maps-modal" class="absolute inset-0 z-[60] bg-white dark:bg-dark-bg transform translate-y-full transition-transform duration-300 flex flex-col">
-        <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
-            <button onclick="closeOfflineMaps()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
-                <i data-lucide="x" class="w-6 h-6 text-black dark:text-white"></i>
-            </button>
-            <div class="font-bold text-xl dark:text-white">Offline Maps</div>
-        </div>
-        
-        <div class="p-4 bg-gray-50 dark:bg-dark-bg flex-1 overflow-y-auto">
-            <div class="mb-6">
-                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Add New Region</h3>
-                <div class="flex space-x-2">
-                    <input type="text" id="offline-search-input" placeholder="Search city (e.g. Breda)" class="flex-1 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <button onclick="searchOfflineRegion()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition">
-                        <i data-lucide="search" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                <div id="offline-search-results" class="mt-2 space-y-2"></div>
-            </div>
+      <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
+        <button onclick="closeOfflineMaps()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
+          <i data-lucide="x" class="w-6 h-6 text-black dark:text-white"></i>
+        </button>
+        <div class="font-bold text-xl dark:text-white">Offline Maps</div>
+      </div>
 
-            <div>
-                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Downloaded Maps</h3>
-                <div id="downloaded-maps-list" class="space-y-2">
-                    <!-- Items will be added here -->
-                    <div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                        <div>
-                            <div class="font-bold text-gray-900 dark:text-white">New York, NY</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">15 MB • Expires in 29 days</div>
-                        </div>
-                        <button class="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-full">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+      <div class="p-4 bg-gray-50 dark:bg-dark-bg flex-1 overflow-y-auto">
+        <div class="mb-6">
+          <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Add New Region</h3>
+          <div class="flex space-x-2">
+            <input
+              type="text"
+              id="offline-search-input"
+              placeholder="Search city (e.g. Breda)"
+              class="flex-1 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button onclick="searchOfflineRegion()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition">
+              <i data-lucide="search" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div id="offline-search-results" class="mt-2 space-y-2"></div>
         </div>
+
+        <div>
+          <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Downloaded Maps</h3>
+          <div id="downloaded-maps-list" class="space-y-2">
+            <!-- Items will be added here -->
+            <div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center">
+              <div>
+                <div class="font-bold text-gray-900 dark:text-white">New York, NY</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">15 MB • Expires in 29 days</div>
+              </div>
+              <button class="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-full">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 8. STEPS & MORE MODAL -->
     <div id="steps-modal" class="absolute inset-0 z-[60] bg-white dark:bg-dark-bg transform translate-y-full transition-transform duration-300 flex flex-col">
-        <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
-            <button onclick="closeSteps()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
-                <i data-lucide="arrow-left" class="w-6 h-6 text-black dark:text-white"></i>
-            </button>
-            <div class="font-bold text-xl dark:text-white">Route Details</div>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-bg p-4">
-            <!-- Route Summary -->
-            <div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm mb-4">
-                <div class="flex justify-between items-center mb-2">
-                    <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="steps-duration">-- min</div>
-                    <div class="text-gray-500 dark:text-gray-400 text-sm" id="steps-distance">--</div>
-                </div>
-                <div class="text-gray-900 dark:text-white font-medium" id="steps-dest">Destination</div>
-            </div>
+      <div class="p-4 shadow-sm relative z-10 bg-white dark:bg-dark-surface flex items-center">
+        <button onclick="closeSteps()" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full mr-2">
+          <i data-lucide="arrow-left" class="w-6 h-6 text-black dark:text-white"></i>
+        </button>
+        <div class="font-bold text-xl dark:text-white">Route Details</div>
+      </div>
 
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Directions</h3>
-            <div id="steps-list" class="space-y-3">
-                <!-- Steps will be injected here -->
-            </div>
+      <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-bg p-4">
+        <!-- Route Summary -->
+        <div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm mb-4">
+          <div class="flex justify-between items-center mb-2">
+            <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="steps-duration">-- min</div>
+            <div class="text-gray-500 dark:text-gray-400 text-sm" id="steps-distance">--</div>
+          </div>
+          <div class="text-gray-900 dark:text-white font-medium" id="steps-dest">Destination</div>
         </div>
+
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Directions</h3>
+        <div id="steps-list" class="space-y-3">
+          <!-- Steps will be injected here -->
+        </div>
+      </div>
     </div>
 
     <!-- Error/Status Toast -->
-    <div id="toast" class="absolute top-24 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-sm px-6 py-3 rounded-full shadow-xl opacity-0 transition-opacity duration-300 z-50 pointer-events-none flex items-center space-x-2 w-max max-w-[90%]">
-        <i data-lucide="info" class="w-4 h-4 text-white"></i>
-        <span id="toast-msg">Notification</span>
+    <div
+      id="toast"
+      class="absolute top-24 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-sm px-6 py-3 rounded-full shadow-xl opacity-0 transition-opacity duration-300 z-50 pointer-events-none flex items-center space-x-2 w-max max-w-[90%]"
+    >
+      <i data-lucide="info" class="w-4 h-4 text-white"></i>
+      <span id="toast-msg">Notification</span>
     </div>
 
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
+
     <script>
-        // PWA Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker failed', err));
-            });
-        }
-
-        // --- 1. CONFIG & INIT ---
-        lucide.createIcons();
-        
-        const APP_VERSION = '1.2.1'; // Update this with each release
-        const GITHUB_REPO = 'Rick007110/Rick-Maps'; // REPLACE THIS with your actual "username/repo"
-
-        // Default to null, we will fetch real location
-        let CURRENT_LOCATION = null; 
-        let WATCH_ID = null;
-        let WAKE_LOCK = null; // New Wake Lock variable
-
-        // Settings Globals
-        let TRAVEL_MODE = 'driving'; // 'driving' or 'cycling'
-        let USE_METRIC = localStorage.getItem('USE_METRIC') === 'true';
-        let VOICE_ENABLED = localStorage.getItem('VOICE_ENABLED') !== 'false'; // Default true
-        let AVOID_TOLLS = localStorage.getItem('AVOID_TOLLS') === 'true';
-        let DARK_MODE = localStorage.getItem('DARK_MODE') === 'true';
-        let tileLayer = null;
-
-        const map = L.map('map', {
-            zoomControl: false,
-            attributionControl: false
-        }).setView([0, 0], 2); // Start zoomed out until GPS hits
-
-        // CartoDB Positron (Uber-like clean tiles)
-        // We initialize with the correct tile layer based on saved preference
-        // Using 'rastertiles/voyager' for a lighter dark mode alternative if needed, 
-        // but user asked for "lighter" map color. 
-        // The standard 'dark_all' is very black. 'voyager' is colorful. 
-        // Let's try a different dark theme or apply CSS filter to lighten it.
-        // Actually, Stadia Alidade Smooth Dark is a bit lighter/blue-ish, but requires API key.
-        // Let's stick to Carto but maybe use a CSS filter on the tile layer container for dark mode to brighten it slightly?
-        // Or switch to 'voyager' which is day/night neutral? No, user wants dark mode.
-        // Let's try applying a CSS filter to the map container when in dark mode to invert/hue-rotate or just brightness.
-        // A simple fix for "too dark" is to use a different provider or just increase brightness via CSS.
-        
-        const tileUrl = DARK_MODE 
-            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-
-        tileLayer = L.tileLayer(tileUrl, {
-            maxZoom: 20, subdomains: 'abcd',
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-            className: DARK_MODE ? 'map-tiles-dark' : '' // Add class for CSS filtering
-        }).addTo(map);
-
-        // Apply Dark Mode Class immediately if saved
-        if (DARK_MODE) {
-            document.documentElement.classList.add('dark');
-        }
-
-        // Apply Settings to UI Controls
-        function loadSettingsUI() {
-            document.getElementById('dark-mode-toggle').checked = DARK_MODE;
-            document.getElementById('voice-toggle').checked = VOICE_ENABLED;
-            document.getElementById('tolls-toggle').checked = AVOID_TOLLS;
-            
-            // Update Unit Buttons
-            document.getElementById('unit-mi').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition" : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
-            document.getElementById('unit-km').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition" : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
-        }
-        
-        // Call immediately
-        loadSettingsUI();
-        renderHomeShortcuts();
-
-        // Icons
-        const userIcon = L.divIcon({ className: 'user-marker', iconSize: [20, 20] });
-        const destIcon = L.divIcon({ 
-            html: `<div class="bg-black w-4 h-4 border-2 border-white shadow-lg"></div>`, 
-            className: 'dest-marker', iconSize: [16, 16], iconAnchor: [8, 8] 
+      // PWA Service Worker Registration
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((reg) => console.log("Service Worker registered"))
+            .catch((err) => console.log("Service Worker failed", err));
         });
-        const navIcon = L.divIcon({
-            html: `<div class="nav-arrow-container"><div class="nav-arrow"></div></div>`,
-            className: 'nav-marker', iconSize: [20, 20], iconAnchor: [10, 10]
-        });
+      }
 
-        // Layers
-        let userMarker = null;
-        let destMarker = null;
-        let routeLayer = null;
-        
-        // Navigation State
-        let currentRouteSteps = [];
-        let currentRouteSummary = { duration: 0, distance: 0 }; // Store route stats
-        let availableRoutes = []; // Store all alternative routes
-        let selectedRouteIndex = 0;
-        let routeLayers = []; // Store map layers for routes
-        let currentRouteGeometry = [];
-        let activeDestination = null;
+      // --- 1. CONFIG & INIT ---
+      lucide.createIcons();
 
-        // UI References
-        const homeState = document.getElementById('home-state');
-        const searchState = document.getElementById('search-state');
-        const previewSheet = document.getElementById('route-preview-sheet');
-        const navTopBar = document.getElementById('nav-top-bar');
-        const navBottomBar = document.getElementById('nav-bottom-bar');
-        const navReportBtn = document.getElementById('nav-report-btn');
-        const reportMenu = document.getElementById('report-menu');
-        const headerUi = document.getElementById('header-ui');
-        const destInput = document.getElementById('destination-input');
-        const suggestionsList = document.getElementById('suggestions-list');
+      const APP_VERSION = "1.2.2"; // Update this with each release
+      const GITHUB_REPO = "Rick007110/Rick-Maps"; // REPLACE THIS with your actual "username/repo"
 
-        // --- 1.1 INITIALIZE GPS ---
-        async function initLocation() {
-            showToast("Locating you...");
+      // Default to null, we will fetch real location
+      let CURRENT_LOCATION = null;
+      let WATCH_ID = null;
+      let WAKE_LOCK = null; // New Wake Lock variable
+      let IS_NAVIGATING = false; // Navigation state flag
+      let IS_FOLLOWING = true; // Map following state flag
 
-            // Request permissions explicitly for Android
-            if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Geolocation) {
-                try {
-                    const permissionStatus = await Capacitor.Plugins.Geolocation.checkPermissions();
-                    if (permissionStatus.location !== 'granted') {
-                        await Capacitor.Plugins.Geolocation.requestPermissions();
-                    }
-                } catch (e) {
-                    console.error("Error requesting permissions", e);
-                }
+      // Settings Globals
+      let TRAVEL_MODE = "driving"; // 'driving' or 'cycling'
+      let USE_METRIC = localStorage.getItem("USE_METRIC") === "true";
+      let VOICE_ENABLED = localStorage.getItem("VOICE_ENABLED") !== "false"; // Default true
+      let AVOID_TOLLS = localStorage.getItem("AVOID_TOLLS") === "true";
+      let DARK_MODE = localStorage.getItem("DARK_MODE") === "true";
+      let tileLayer = null;
+
+      const map = L.map("map", {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([0, 0], 2); // Start zoomed out until GPS hits
+
+      // CartoDB Positron (Uber-like clean tiles)
+      // We initialize with the correct tile layer based on saved preference
+      // Using 'rastertiles/voyager' for a lighter dark mode alternative if needed,
+      // but user asked for "lighter" map color.
+      // The standard 'dark_all' is very black. 'voyager' is colorful.
+      // Let's try a different dark theme or apply CSS filter to lighten it.
+      // Actually, Stadia Alidade Smooth Dark is a bit lighter/blue-ish, but requires API key.
+      // Let's stick to Carto but maybe use a CSS filter on the tile layer container for dark mode to brighten it slightly?
+      // Or switch to 'voyager' which is day/night neutral? No, user wants dark mode.
+      // Let's try applying a CSS filter to the map container when in dark mode to invert/hue-rotate or just brightness.
+      // A simple fix for "too dark" is to use a different provider or just increase brightness via CSS.
+
+      const tileUrl = DARK_MODE ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+
+      tileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 20,
+        subdomains: "abcd",
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+        className: DARK_MODE ? "map-tiles-dark" : "", // Add class for CSS filtering
+      }).addTo(map);
+
+      // Apply Dark Mode Class immediately if saved
+      if (DARK_MODE) {
+        document.documentElement.classList.add("dark");
+      }
+
+      // Apply Settings to UI Controls
+      function loadSettingsUI() {
+        document.getElementById("dark-mode-toggle").checked = DARK_MODE;
+        document.getElementById("voice-toggle").checked = VOICE_ENABLED;
+        document.getElementById("tolls-toggle").checked = AVOID_TOLLS;
+
+        // Update Unit Buttons
+        document.getElementById("unit-mi").className = USE_METRIC
+          ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition"
+          : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
+        document.getElementById("unit-km").className = USE_METRIC
+          ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition"
+          : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
+      }
+
+      // Call immediately
+      loadSettingsUI();
+      renderHomeShortcuts();
+
+      // Icons
+      const userIcon = L.divIcon({ className: "user-marker", iconSize: [20, 20] });
+      const destIcon = L.divIcon({
+        html: `<div class="bg-black w-4 h-4 border-2 border-white shadow-lg"></div>`,
+        className: "dest-marker",
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      const navIcon = L.divIcon({
+        html: `<div class="nav-arrow-container"><div class="nav-arrow"></div></div>`,
+        className: "nav-marker",
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
+
+      // Layers
+      let userMarker = null;
+      let destMarker = null;
+      let routeLayer = null;
+
+      // Navigation State
+      let currentRouteSteps = [];
+      let currentRouteSummary = { duration: 0, distance: 0 }; // Store route stats
+      let availableRoutes = []; // Store all alternative routes
+      let selectedRouteIndex = 0;
+      let routeLayers = []; // Store map layers for routes
+      let currentRouteGeometry = [];
+      let activeDestination = null;
+
+      // UI References
+      const homeState = document.getElementById("home-state");
+      const searchState = document.getElementById("search-state");
+      const previewSheet = document.getElementById("route-preview-sheet");
+      const navTopBar = document.getElementById("nav-top-bar");
+      const navBottomBar = document.getElementById("nav-bottom-bar");
+      const navReportBtn = document.getElementById("nav-report-btn");
+      const reportMenu = document.getElementById("report-menu");
+      const headerUi = document.getElementById("header-ui");
+      const destInput = document.getElementById("destination-input");
+      const suggestionsList = document.getElementById("suggestions-list");
+
+      // --- 1.1 INITIALIZE GPS ---
+      async function initLocation() {
+        showToast("Locating you...");
+
+        // Request permissions explicitly for Android
+        if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Geolocation) {
+          try {
+            const permissionStatus = await Capacitor.Plugins.Geolocation.checkPermissions();
+            if (permissionStatus.location !== "granted") {
+              await Capacitor.Plugins.Geolocation.requestPermissions();
             }
-
-            if ("geolocation" in navigator) {
-                // High accuracy is crucial for navigation
-                WATCH_ID = navigator.geolocation.watchPosition(
-                    updatePosition, 
-                    locationError, 
-                    { 
-                        enableHighAccuracy: true, 
-                        timeout: 10000, 
-                        maximumAge: 0 
-                    }
-                );
-                
-                // Listen for device orientation for compass heading
-                if (window.DeviceOrientationEvent) {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                }
-            } else {
-                showToast("Geolocation is not supported by your browser");
-            }
+          } catch (e) {
+            console.error("Error requesting permissions", e);
+          }
         }
 
-        function handleOrientation(event) {
-            // alpha is the compass direction the device is facing in degrees
-            let heading = event.alpha;
-            
-            // Webkit browsers use webkitCompassHeading
-            if (event.webkitCompassHeading) {
-                heading = event.webkitCompassHeading;
-            }
+        if ("geolocation" in navigator) {
+          // High accuracy is crucial for navigation
+          WATCH_ID = navigator.geolocation.watchPosition(updatePosition, locationError, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+          });
 
-            if (heading !== null) {
-                // Rotate the arrow icon
-                const arrowEl = document.querySelector('.nav-arrow-container');
-                if (arrowEl) {
-                    // Adjust rotation based on map rotation if needed, but for now just rotate icon
-                    arrowEl.style.transform = `rotate(${heading}deg)`;
-                }
-            }
+          // Listen for device orientation for compass heading
+          if (window.DeviceOrientationEvent) {
+            window.addEventListener("deviceorientation", handleOrientation);
+          }
+        } else {
+          showToast("Geolocation is not supported by your browser");
+        }
+      }
+
+      function handleOrientation(event) {
+        // alpha is the compass direction the device is facing in degrees
+        let heading = event.alpha;
+
+        // Webkit browsers use webkitCompassHeading
+        if (event.webkitCompassHeading) {
+          heading = event.webkitCompassHeading;
         }
 
-        function updatePosition(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            // On first location found
-            if (!CURRENT_LOCATION) {
-                showToast("Location found");
-                map.setView([lat, lng], 15);
-                document.querySelector('input[value="Current Location"]').value = "Your Location";
-            }
+        if (heading !== null) {
+          // Rotate the arrow icon
+          const arrowEl = document.querySelector(".nav-arrow-container");
+          if (arrowEl) {
+            // Adjust rotation based on map rotation if needed, but for now just rotate icon
+            arrowEl.style.transform = `rotate(${heading}deg)`;
+          }
+        }
+      }
 
-            CURRENT_LOCATION = [lat, lng];
+      function updatePosition(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
-            // Update User Marker
-            if (!userMarker) {
-                userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
-            } else {
-                userMarker.setLatLng([lat, lng]);
-            }
-            
-            // If we have GPS heading (speed > 0 usually), use it over compass
-            if (position.coords.heading && position.coords.speed > 1) {
-                 const arrowEl = document.querySelector('.nav-arrow-container');
-                 if (arrowEl) arrowEl.style.transform = `rotate(${position.coords.heading}deg)`;
-            }
-
-            // If Navigation is active, update nav logic
-            if (navBottomBar.classList.contains('translate-y-0')) {
-                 handleNavigationUpdate(position);
-            }
+        // On first location found
+        if (!CURRENT_LOCATION) {
+          showToast("Location found");
+          map.setView([lat, lng], 15);
+          document.querySelector('input[value="Current Location"]').value = "Your Location";
         }
 
-        function recenterMap() {
-            if (CURRENT_LOCATION) {
-                map.setView(CURRENT_LOCATION, 18, { animate: true });
-                // Hide button again
-                document.getElementById('recenter-btn').classList.add('opacity-0', 'pointer-events-none');
-            } else {
-                showToast("Location not found yet");
-            }
+        CURRENT_LOCATION = [lat, lng];
+
+        // Update User Marker
+        if (!userMarker) {
+          userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+        } else {
+          userMarker.setLatLng([lat, lng]);
         }
 
-        // Show re-center button when map is dragged
-        map.on('dragstart', () => {
-            document.getElementById('recenter-btn').classList.remove('opacity-0', 'pointer-events-none');
-        });
-
-        function locationError(err) {
-            console.warn("Location error: ", err);
-            let msg = "Location error.";
-            
-            // Specific error handling for permissions
-            switch(err.code) {
-                case err.PERMISSION_DENIED:
-                    msg = "Location denied. Please enable 'Always' or 'While Using' in settings.";
-                    break;
-                case err.POSITION_UNAVAILABLE:
-                    msg = "GPS signal weak or unavailable.";
-                    break;
-                case err.TIMEOUT:
-                    msg = "Locating timed out. Retrying...";
-                    break;
-            }
-            
-            // Only show error if we haven't found location yet or if it's a permission issue
-            if(!CURRENT_LOCATION || err.code === err.PERMISSION_DENIED) {
-                showToast(msg);
-            }
+        // If we have GPS heading (speed > 0 usually), use it over compass
+        if (position.coords.heading && position.coords.speed > 1) {
+          const arrowEl = document.querySelector(".nav-arrow-container");
+          if (arrowEl) arrowEl.style.transform = `rotate(${position.coords.heading}deg)`;
         }
 
-        // --- 1.2 SCREEN WAKE LOCK (Keep screen on while driving) ---
-        async function requestWakeLock() {
-            if ('wakeLock' in navigator) {
-                try {
-                    WAKE_LOCK = await navigator.wakeLock.request('screen');
-                    console.log('Screen Wake Lock active');
-                } catch (err) {
-                    console.error(`${err.name}, ${err.message}`);
-                }
-            }
+        // If Navigation is active, update nav logic
+        if (IS_NAVIGATING) {
+          handleNavigationUpdate(position);
+        }
+      }
+
+      function recenterMap() {
+        if (CURRENT_LOCATION) {
+          IS_FOLLOWING = true;
+          map.setView(CURRENT_LOCATION, 18, { animate: true });
+          // Hide button again
+          document.getElementById("recenter-btn").classList.add("opacity-0", "pointer-events-none");
+        } else {
+          showToast("Location not found yet");
+        }
+      }
+
+      // Show re-center button when map is dragged
+      map.on("dragstart", () => {
+        IS_FOLLOWING = false;
+        document.getElementById("recenter-btn").classList.remove("opacity-0", "pointer-events-none");
+      });
+
+      function locationError(err) {
+        console.warn("Location error: ", err);
+        let msg = "Location error.";
+
+        // Specific error handling for permissions
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            msg = "Location denied. Please enable 'Always' or 'While Using' in settings.";
+            break;
+          case err.POSITION_UNAVAILABLE:
+            msg = "GPS signal weak or unavailable.";
+            break;
+          case err.TIMEOUT:
+            msg = "Locating timed out. Retrying...";
+            break;
         }
 
-        function releaseWakeLock() {
-            if (WAKE_LOCK !== null) {
-                WAKE_LOCK.release()
-                    .then(() => {
-                        WAKE_LOCK = null;
-                        console.log('Screen Wake Lock released');
-                    });
-            }
+        // Only show error if we haven't found location yet or if it's a permission issue
+        if (!CURRENT_LOCATION || err.code === err.PERMISSION_DENIED) {
+          showToast(msg);
         }
+      }
 
-        // Handle visibility change to re-acquire lock if user tabs out and back
-        document.addEventListener('visibilitychange', async () => {
-            if (WAKE_LOCK !== null && document.visibilityState === 'visible') {
-                await requestWakeLock();
-            }
-        });
-
-        // Start immediately
-        initLocation();
-
-        // --- 2. SEARCH LOGIC ---
-        let debounceTimer;
-        destInput.addEventListener('input', (e) => {
-            const query = e.target.value;
-            clearTimeout(debounceTimer);
-            if (query.length === 0) {
-                renderSearchHistory();
-                return;
-            }
-            if (query.length < 3) return;
-            debounceTimer = setTimeout(() => fetchAddress(query), 500);
-        });
-
-        async function fetchAddress(query) {
-            try {
-                // Bias search towards current location if available
-                let viewbox = '';
-                if (CURRENT_LOCATION) {
-                    // Rough bounding box around user
-                    const b = 1.0; // ~69 miles box
-                    viewbox = `&viewbox=${CURRENT_LOCATION[1]-b},${CURRENT_LOCATION[0]+b},${CURRENT_LOCATION[1]+b},${CURRENT_LOCATION[0]-b}`;
-                }
-
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewbox}`);
-                const data = await res.json();
-                renderSuggestions(data);
-            } catch(e) { console.error(e); }
+      // --- 1.2 SCREEN WAKE LOCK (Keep screen on while driving) ---
+      async function requestWakeLock() {
+        if ("wakeLock" in navigator) {
+          try {
+            WAKE_LOCK = await navigator.wakeLock.request("screen");
+            console.log("Screen Wake Lock active");
+          } catch (err) {
+            console.error(`${err.name}, ${err.message}`);
+          }
         }
+      }
 
-        function renderSuggestions(results) {
-            suggestionsList.innerHTML = '';
-            if (results.length === 0) {
-                 suggestionsList.innerHTML = '<div class="p-4 text-gray-400 text-center text-sm">No places found</div>';
-                 return;
-            }
-            results.forEach(place => {
-                const name = place.display_name.split(',')[0];
-                const div = document.createElement('div');
-                div.className = 'flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition';
-                div.onclick = () => selectPresetDestination(name, place.lat, place.lon);
-                div.innerHTML = `
+      function releaseWakeLock() {
+        if (WAKE_LOCK !== null) {
+          WAKE_LOCK.release().then(() => {
+            WAKE_LOCK = null;
+            console.log("Screen Wake Lock released");
+          });
+        }
+      }
+
+      // Handle visibility change to re-acquire lock if user tabs out and back
+      document.addEventListener("visibilitychange", async () => {
+        if (WAKE_LOCK !== null && document.visibilityState === "visible") {
+          await requestWakeLock();
+        }
+      });
+
+      // Start immediately
+      initLocation();
+
+      // --- 2. SEARCH LOGIC ---
+      let debounceTimer;
+      destInput.addEventListener("input", (e) => {
+        const query = e.target.value;
+        clearTimeout(debounceTimer);
+        if (query.length === 0) {
+          renderSearchHistory();
+          return;
+        }
+        if (query.length < 3) return;
+        debounceTimer = setTimeout(() => fetchAddress(query), 500);
+      });
+
+      async function fetchAddress(query) {
+        try {
+          // Bias search towards current location if available
+          let viewbox = "";
+          if (CURRENT_LOCATION) {
+            // Rough bounding box around user
+            const b = 1.0; // ~69 miles box
+            viewbox = `&viewbox=${CURRENT_LOCATION[1] - b},${CURRENT_LOCATION[0] + b},${CURRENT_LOCATION[1] + b},${CURRENT_LOCATION[0] - b}`;
+          }
+
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewbox}`);
+          const data = await res.json();
+          renderSuggestions(data);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      function renderSuggestions(results) {
+        suggestionsList.innerHTML = "";
+        if (results.length === 0) {
+          suggestionsList.innerHTML = '<div class="p-4 text-gray-400 text-center text-sm">No places found</div>';
+          return;
+        }
+        results.forEach((place) => {
+          const name = place.display_name.split(",")[0];
+          const div = document.createElement("div");
+          div.className = "flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition";
+          div.onclick = () => selectPresetDestination(name, place.lat, place.lon);
+          div.innerHTML = `
                     <div class="bg-gray-100 p-2 rounded-full mr-4"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i></div>
                     <div class="overflow-hidden">
                         <div class="font-semibold text-gray-900 truncate">${name}</div>
                         <div class="text-xs text-gray-500 truncate">${place.display_name}</div>
                     </div>
                 `;
-                suggestionsList.appendChild(div);
-            });
-            lucide.createIcons();
+          suggestionsList.appendChild(div);
+        });
+        lucide.createIcons();
+      }
+
+      // --- 3. UI STATE TRANSITIONS ---
+
+      // --- SAVE LOCATION LOGIC ---
+      function openSaveMenu() {
+        const modal = document.getElementById("save-location-modal");
+        const content = document.getElementById("save-location-content");
+        modal.classList.remove("opacity-0", "pointer-events-none");
+        setTimeout(() => content.classList.remove("translate-y-full"), 10);
+      }
+
+      function closeSaveMenu() {
+        const modal = document.getElementById("save-location-modal");
+        const content = document.getElementById("save-location-content");
+        content.classList.add("translate-y-full");
+        setTimeout(() => modal.classList.add("opacity-0", "pointer-events-none"), 300);
+      }
+
+      function saveLocation(type) {
+        if (!activeDestination) {
+          showToast("No location selected");
+          closeSaveMenu();
+          return;
+        }
+        const locData = JSON.stringify(activeDestination);
+        if (type === "Home") {
+          localStorage.setItem("HOME_LOCATION", locData);
+          showToast("Home location saved");
+        } else if (type === "Work") {
+          localStorage.setItem("WORK_LOCATION", locData);
+          showToast("Work location saved");
+        } else if (type === "Favorite") {
+          let favs = JSON.parse(localStorage.getItem("FAVORITE_LOCATIONS") || "[]");
+          const exists = favs.some((f) => f.name === activeDestination.name && f.lat === activeDestination.lat);
+          if (!exists) {
+            favs.push(activeDestination);
+            localStorage.setItem("FAVORITE_LOCATIONS", JSON.stringify(favs));
+            showToast("Added to Favorites");
+            renderHomeShortcuts(); // Update UI
+          } else {
+            showToast("Already in Favorites");
+          }
+        }
+        closeSaveMenu();
+      }
+
+      function renderHomeShortcuts() {
+        const container = document.getElementById("home-shortcuts");
+        if (!container) return;
+
+        // Remove all children after the first 2 (Home & Work)
+        while (container.children.length > 2) {
+          container.removeChild(container.lastChild);
         }
 
-        // --- 3. UI STATE TRANSITIONS ---
+        const favs = JSON.parse(localStorage.getItem("FAVORITE_LOCATIONS") || "[]");
+        favs.forEach((place) => {
+          const div = document.createElement("div");
+          div.className = "flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer";
+          div.onclick = () => selectPresetDestination(place.name, place.lat, place.lon);
 
-        // --- SAVE LOCATION LOGIC ---
-        function openSaveMenu() {
-            const modal = document.getElementById('save-location-modal');
-            const content = document.getElementById('save-location-content');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            setTimeout(() => content.classList.remove('translate-y-full'), 10);
-        }
-
-        function closeSaveMenu() {
-            const modal = document.getElementById('save-location-modal');
-            const content = document.getElementById('save-location-content');
-            content.classList.add('translate-y-full');
-            setTimeout(() => modal.classList.add('opacity-0', 'pointer-events-none'), 300);
-        }
-
-        function saveLocation(type) {
-            if (!activeDestination) {
-                showToast("No location selected");
-                closeSaveMenu();
-                return;
-            }
-            const locData = JSON.stringify(activeDestination);
-            if (type === 'Home') {
-                localStorage.setItem('HOME_LOCATION', locData);
-                showToast("Home location saved");
-            } else if (type === 'Work') {
-                localStorage.setItem('WORK_LOCATION', locData);
-                showToast("Work location saved");
-            } else if (type === 'Favorite') {
-                let favs = JSON.parse(localStorage.getItem('FAVORITE_LOCATIONS') || '[]');
-                const exists = favs.some(f => f.name === activeDestination.name && f.lat === activeDestination.lat);
-                if (!exists) {
-                    favs.push(activeDestination);
-                    localStorage.setItem('FAVORITE_LOCATIONS', JSON.stringify(favs));
-                    showToast("Added to Favorites");
-                    renderHomeShortcuts(); // Update UI
-                } else {
-                    showToast("Already in Favorites");
-                }
-            }
-            closeSaveMenu();
-        }
-
-        function renderHomeShortcuts() {
-            const container = document.getElementById('home-shortcuts');
-            if (!container) return;
-            
-            // Remove all children after the first 2 (Home & Work)
-            while (container.children.length > 2) {
-                container.removeChild(container.lastChild);
-            }
-
-            const favs = JSON.parse(localStorage.getItem('FAVORITE_LOCATIONS') || '[]');
-            favs.forEach(place => {
-                const div = document.createElement('div');
-                div.className = "flex-shrink-0 flex flex-col items-center space-y-2 w-20 cursor-pointer";
-                div.onclick = () => selectPresetDestination(place.name, place.lat, place.lon);
-                
-                div.innerHTML = `
+          div.innerHTML = `
                     <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
                         <i data-lucide="heart" class="w-6 h-6 text-red-500"></i>
                     </div>
                     <span class="text-xs font-medium truncate w-full text-center px-1">${place.name}</span>
                 `;
-                container.appendChild(div);
-            });
-            lucide.createIcons();
-        }
+          container.appendChild(div);
+        });
+        lucide.createIcons();
+      }
 
-        function renderSearchHistory() {
-            suggestionsList.innerHTML = '';
-            
-            // Favorites
-            const favs = JSON.parse(localStorage.getItem('FAVORITE_LOCATIONS') || '[]');
-            if (favs.length > 0) {
-                const label = document.createElement('div');
-                label.className = "p-4 text-xs font-bold text-gray-400 uppercase tracking-wider";
-                label.innerText = "Favorites";
-                suggestionsList.appendChild(label);
+      function renderSearchHistory() {
+        suggestionsList.innerHTML = "";
 
-                favs.forEach(place => {
-                    const div = document.createElement('div');
-                    div.className = 'flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition';
-                    div.onclick = () => selectPresetDestination(place.name, place.lat, place.lon);
-                    div.innerHTML = `
+        // Favorites
+        const favs = JSON.parse(localStorage.getItem("FAVORITE_LOCATIONS") || "[]");
+        if (favs.length > 0) {
+          const label = document.createElement("div");
+          label.className = "p-4 text-xs font-bold text-gray-400 uppercase tracking-wider";
+          label.innerText = "Favorites";
+          suggestionsList.appendChild(label);
+
+          favs.forEach((place) => {
+            const div = document.createElement("div");
+            div.className = "flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition";
+            div.onclick = () => selectPresetDestination(place.name, place.lat, place.lon);
+            div.innerHTML = `
                         <div class="bg-red-100 p-2 rounded-full mr-4"><i data-lucide="heart" class="w-5 h-5 text-red-500"></i></div>
                         <div class="overflow-hidden">
                             <div class="font-semibold text-gray-900 truncate">${place.name}</div>
                             <div class="text-xs text-gray-500 truncate">Favorite</div>
                         </div>
                     `;
-                    suggestionsList.appendChild(div);
-                });
-            }
-            
-            // Default "Recent" placeholder if empty
-            if (favs.length === 0) {
-                 suggestionsList.innerHTML = '<div class="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Recent</div><div class="p-4 text-center text-gray-400 text-sm">No favorites yet</div>';
-            }
-            lucide.createIcons();
+            suggestionsList.appendChild(div);
+          });
         }
 
-        function goToSearchState() {
-            homeState.classList.add('translate-y-full');
-            headerUi.classList.add('opacity-0', 'pointer-events-none');
-            searchState.classList.remove('translate-y-full');
-            renderSearchHistory();
-            setTimeout(() => destInput.focus(), 300);
+        // Default "Recent" placeholder if empty
+        if (favs.length === 0) {
+          suggestionsList.innerHTML = '<div class="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Recent</div><div class="p-4 text-center text-gray-400 text-sm">No favorites yet</div>';
         }
+        lucide.createIcons();
+      }
 
-        function goBackToHome() {
-            searchState.classList.add('translate-y-full');
-            homeState.classList.remove('translate-y-full');
-            headerUi.classList.remove('opacity-0', 'pointer-events-none');
-            resetMap();
-        }
+      function goToSearchState() {
+        homeState.classList.add("translate-y-full");
+        headerUi.classList.add("opacity-0", "pointer-events-none");
+        searchState.classList.remove("translate-y-full");
+        renderSearchHistory();
+        setTimeout(() => destInput.focus(), 300);
+      }
 
-        function selectPresetDestination(name, lat=null, lon=null) {
-            // Handle Shortcuts
-            if (!lat || !lon) {
-                if (name === "Home") {
-                    const saved = localStorage.getItem('HOME_LOCATION');
-                    if (saved) {
-                        const loc = JSON.parse(saved);
-                        lat = loc.lat;
-                        lon = loc.lon;
-                        name = loc.name;
-                    } else {
-                        showToast("Home not set. Search and save a location as Home.");
-                        goToSearchState();
-                        return;
-                    }
-                } else if (name === "Work") {
-                    const saved = localStorage.getItem('WORK_LOCATION');
-                    if (saved) {
-                        const loc = JSON.parse(saved);
-                        lat = loc.lat;
-                        lon = loc.lon;
-                        name = loc.name;
-                    } else {
-                        showToast("Work not set. Search and save a location as Work.");
-                        goToSearchState();
-                        return;
-                    }
-                } else {
-                    showToast("Please search for an address");
-                    return;
-                }
-            }
+      function goBackToHome() {
+        searchState.classList.add("translate-y-full");
+        homeState.classList.remove("translate-y-full");
+        headerUi.classList.remove("opacity-0", "pointer-events-none");
+        resetMap();
+      }
 
-            searchState.classList.add('translate-y-full');
-            headerUi.classList.add('opacity-0', 'pointer-events-none'); 
-            homeState.classList.add('translate-y-full'); 
-            
-            // 1. Set Active Destination
-            activeDestination = { name, lat, lon };
-
-            // 2. Reset Travel Mode to Driving (default)
-            setTravelMode('driving'); 
-            
-            // 3. Show Preview UI
-            document.getElementById('preview-dest-name').innerText = name;
-            previewSheet.classList.remove('translate-y-full');
-        }
-
-        function setTravelMode(mode) {
-            TRAVEL_MODE = mode;
-            
-            // Update Buttons
-            const driveBtn = document.getElementById('mode-driving');
-            const bikeBtn = document.getElementById('mode-cycling');
-            
-            if (mode === 'driving') {
-                driveBtn.className = "flex-1 py-2 rounded-lg bg-black text-white font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm";
-                bikeBtn.className = "flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium text-sm flex items-center justify-center space-x-2 hover:bg-gray-200 transition";
+      function selectPresetDestination(name, lat = null, lon = null) {
+        // Handle Shortcuts
+        if (!lat || !lon) {
+          if (name === "Home") {
+            const saved = localStorage.getItem("HOME_LOCATION");
+            if (saved) {
+              const loc = JSON.parse(saved);
+              lat = loc.lat;
+              lon = loc.lon;
+              name = loc.name;
             } else {
-                driveBtn.className = "flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium text-sm flex items-center justify-center space-x-2 hover:bg-gray-200 transition";
-                bikeBtn.className = "flex-1 py-2 rounded-lg bg-black text-white font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm";
+              showToast("Home not set. Search and save a location as Home.");
+              goToSearchState();
+              return;
             }
-
-            // Re-fetch route if destination is active
-            if (activeDestination) {
-                fetchRoute(activeDestination.lat, activeDestination.lon);
+          } else if (name === "Work") {
+            const saved = localStorage.getItem("WORK_LOCATION");
+            if (saved) {
+              const loc = JSON.parse(saved);
+              lat = loc.lat;
+              lon = loc.lon;
+              name = loc.name;
+            } else {
+              showToast("Work not set. Search and save a location as Work.");
+              goToSearchState();
+              return;
             }
+          } else {
+            showToast("Please search for an address");
+            return;
+          }
         }
 
-        // --- 4. MAP & ROUTING LOGIC (OSRM) ---
-        async function fetchRoute(destLat, destLon) {
-            if (!CURRENT_LOCATION) {
-                showToast("Waiting for your location...");
-                return;
-            }
+        searchState.classList.add("translate-y-full");
+        headerUi.classList.add("opacity-0", "pointer-events-none");
+        homeState.classList.add("translate-y-full");
 
-            const startLng = CURRENT_LOCATION[1];
-            const startLat = CURRENT_LOCATION[0];
+        // 1. Set Active Destination
+        activeDestination = { name, lat, lon };
 
-            try {
-                // Determine Server & Profile based on Mode
-                let baseUrl = 'https://routing.openstreetmap.de/';
-                let profile = 'driving';
-                
-                if (TRAVEL_MODE === 'cycling') {
-                    // Specialized Bike Server
-                    baseUrl += 'routed-bike/route/v1/';
-                } else {
-                    // Specialized Car Server (Better alternatives than main OSRM sometimes)
-                    baseUrl += 'routed-car/route/v1/';
-                }
-                
-                // Request alternatives (Magic Earth style)
-                let url = `${baseUrl}${profile}/${startLng},${startLat};${destLon},${destLat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
-                
-                if (AVOID_TOLLS && TRAVEL_MODE === 'driving') {
-                    url += '&exclude=toll';
-                }
-                
-                // showToast(`Calculating ${TRAVEL_MODE} route...`);
-                const response = await fetch(url);
-                const data = await response.json();
+        // 2. Reset Travel Mode to Driving (default)
+        setTravelMode("driving");
 
-                if (data.code !== "Ok") {
-                    showToast("Could not find a route.");
-                    return;
-                }
+        // 3. Show Preview UI
+        document.getElementById("preview-dest-name").innerText = name;
+        previewSheet.classList.remove("translate-y-full");
+      }
 
-                availableRoutes = data.routes;
+      function setTravelMode(mode) {
+        TRAVEL_MODE = mode;
 
-                // 1. Filter duplicates (OSRM sometimes returns identical alternatives)
-                const uniqueRoutes = [];
-                const seen = new Set();
-                availableRoutes.forEach(r => {
-                    // Create a simple signature based on geometry length or summary
-                    const key = Math.round(r.distance) + "-" + Math.round(r.duration) + "-" + r.geometry.coordinates.length;
-                    if (!seen.has(key)) {
-                        seen.add(key);
-                        uniqueRoutes.push(r);
-                    }
-                });
-                availableRoutes = uniqueRoutes;
+        // Update Buttons
+        const driveBtn = document.getElementById("mode-driving");
+        const bikeBtn = document.getElementById("mode-cycling");
 
-                // 2. Filter out "bad" routes (loops/excessive length)
-                // Stricter filter: Max 1.5x the shortest distance to avoid crazy loops
-                if (availableRoutes.length > 1) {
-                    const shortest = availableRoutes.reduce((min, r) => r.distance < min ? r.distance : min, Infinity);
-                    availableRoutes = availableRoutes.filter(r => r.distance < shortest * 1.5);
-                }
-
-                selectRoute(0); // Select the first route by default
-                
-                // Draw All Routes on Map
-                drawAllRoutes(destLat, destLon);
-
-            } catch (error) {
-                console.error("Routing error:", error);
-                showToast("Error connecting to routing service");
-            }
+        if (mode === "driving") {
+          driveBtn.className = "flex-1 py-2 rounded-lg bg-black text-white font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm";
+          bikeBtn.className = "flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium text-sm flex items-center justify-center space-x-2 hover:bg-gray-200 transition";
+        } else {
+          driveBtn.className = "flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium text-sm flex items-center justify-center space-x-2 hover:bg-gray-200 transition";
+          bikeBtn.className = "flex-1 py-2 rounded-lg bg-black text-white font-medium text-sm flex items-center justify-center space-x-2 transition shadow-sm";
         }
 
-        function selectRoute(index) {
-            selectedRouteIndex = index;
-            const route = availableRoutes[index];
-            
-            currentRouteSteps = route.legs[0].steps; // Save instructions
-            currentRouteSummary = { duration: route.duration, distance: route.distance }; // Save summary
-            
-            // Decode route stats
-            // Format Duration: XX h XX min or XX min
-            let durationDisplay = "";
-            const totalMins = Math.round(route.duration / 60);
-            if (totalMins >= 60) {
-                const h = Math.floor(totalMins / 60);
-                const m = totalMins % 60;
-                durationDisplay = `${h}h ${m}m`;
-            } else {
-                durationDisplay = `${totalMins}`;
-            }
-            
-            let distanceDisplay = "";
-            let unitDisplay = "";
+        // Re-fetch route if destination is active
+        if (activeDestination) {
+          fetchRoute(activeDestination.lat, activeDestination.lon);
+        }
+      }
 
-            if (USE_METRIC) {
-                distanceDisplay = (route.distance / 1000).toFixed(1);
-                unitDisplay = "km";
-            } else {
-                distanceDisplay = (route.distance / 1609.34).toFixed(1);
-                unitDisplay = "miles";
-            }
-            
-            // Update UI with REAL stats
-            const eta = new Date(Date.now() + route.duration * 1000);
-            document.getElementById('preview-duration').innerText = durationDisplay;
-            document.getElementById('preview-distance').innerText = distanceDisplay;
-            document.getElementById('preview-distance-unit').innerText = unitDisplay;
-            
-            // 24h Time Format
-            const timeStr = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
-            document.getElementById('preview-eta').innerText = timeStr;
-            document.getElementById('preview-eta-label').innerText = "ETA";
-
-            document.getElementById('eta-display').innerText = timeStr;
-            
-            // Update Label
-            const label = document.getElementById('preview-route-label');
-            if (availableRoutes.length > 1) {
-                const diff = Math.round((route.duration - availableRoutes[0].duration) / 60);
-                const diffStr = diff > 0 ? `+${diff} min` : 'Fastest';
-                label.innerText = `Route ${index + 1} of ${availableRoutes.length} • ${diffStr}`;
-            } else {
-                label.innerText = "Fastest route";
-            }
-            
-            // Re-draw to update colors if map is already drawn
-            if (routeLayers.length > 0) {
-                updateRouteColors();
-            }
+      // --- 4. MAP & ROUTING LOGIC (OSRM) ---
+      async function fetchRoute(destLat, destLon) {
+        if (!CURRENT_LOCATION) {
+          showToast("Waiting for your location...");
+          return;
         }
 
-        function drawAllRoutes(destLat, destLon) {
-            // Clear existing layers
-            routeLayers.forEach(item => {
-                map.removeLayer(item.layer);
-                if (item.hitLayer) map.removeLayer(item.hitLayer);
+        const startLng = CURRENT_LOCATION[1];
+        const startLat = CURRENT_LOCATION[0];
+
+        try {
+          // Determine Server & Profile based on Mode
+          let baseUrl = "https://routing.openstreetmap.de/";
+          let profile = "driving";
+
+          if (TRAVEL_MODE === "cycling") {
+            // Specialized Bike Server
+            baseUrl += "routed-bike/route/v1/";
+          } else {
+            // Specialized Car Server (Better alternatives than main OSRM sometimes)
+            baseUrl += "routed-car/route/v1/";
+          }
+
+          // Request alternatives (Magic Earth style)
+          let url = `${baseUrl}${profile}/${startLng},${startLat};${destLon},${destLat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
+
+          if (AVOID_TOLLS && TRAVEL_MODE === "driving") {
+            url += "&exclude=toll";
+          }
+
+          // showToast(`Calculating ${TRAVEL_MODE} route...`);
+          const response = await fetch(url);
+          const data = await response.json();
+
+          if (data.code !== "Ok") {
+            showToast("Could not find a route.");
+            return;
+          }
+
+          availableRoutes = data.routes;
+
+          // 1. Filter duplicates (OSRM sometimes returns identical alternatives)
+          const uniqueRoutes = [];
+          const seen = new Set();
+          availableRoutes.forEach((r) => {
+            // Create a simple signature based on geometry length or summary
+            const key = Math.round(r.distance) + "-" + Math.round(r.duration) + "-" + r.geometry.coordinates.length;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueRoutes.push(r);
+            }
+          });
+          availableRoutes = uniqueRoutes;
+
+          // 2. Filter out "bad" routes (loops/excessive length)
+          // Stricter filter: Max 1.5x the shortest distance to avoid crazy loops
+          if (availableRoutes.length > 1) {
+            const shortest = availableRoutes.reduce((min, r) => (r.distance < min ? r.distance : min), Infinity);
+            availableRoutes = availableRoutes.filter((r) => r.distance < shortest * 1.5);
+          }
+
+          selectRoute(0); // Select the first route by default
+
+          // Draw All Routes on Map
+          drawAllRoutes(destLat, destLon);
+        } catch (error) {
+          console.error("Routing error:", error);
+          showToast("Error connecting to routing service");
+        }
+      }
+
+      function selectRoute(index) {
+        selectedRouteIndex = index;
+        const route = availableRoutes[index];
+
+        currentRouteSteps = route.legs[0].steps; // Save instructions
+        currentRouteSummary = { duration: route.duration, distance: route.distance }; // Save summary
+
+        // Decode route stats
+        // Format Duration: XX h XX min or XX min
+        let durationDisplay = "";
+        const totalMins = Math.round(route.duration / 60);
+        if (totalMins >= 60) {
+          const h = Math.floor(totalMins / 60);
+          const m = totalMins % 60;
+          durationDisplay = `${h}h ${m}m`;
+        } else {
+          durationDisplay = `${totalMins}`;
+        }
+
+        let distanceDisplay = "";
+        let unitDisplay = "";
+
+        if (USE_METRIC) {
+          distanceDisplay = (route.distance / 1000).toFixed(1);
+          unitDisplay = "km";
+        } else {
+          distanceDisplay = (route.distance / 1609.34).toFixed(1);
+          unitDisplay = "miles";
+        }
+
+        // Update UI with REAL stats
+        const eta = new Date(Date.now() + route.duration * 1000);
+        document.getElementById("preview-duration").innerText = durationDisplay;
+        document.getElementById("preview-distance").innerText = distanceDisplay;
+        document.getElementById("preview-distance-unit").innerText = unitDisplay;
+
+        // 24h Time Format
+        const timeStr = eta.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+        document.getElementById("preview-eta").innerText = timeStr;
+        document.getElementById("preview-eta-label").innerText = "ETA";
+
+        document.getElementById("eta-display").innerText = timeStr;
+
+        // Update Label
+        const label = document.getElementById("preview-route-label");
+        if (availableRoutes.length > 1) {
+          const diff = Math.round((route.duration - availableRoutes[0].duration) / 60);
+          const diffStr = diff > 0 ? `+${diff} min` : "Fastest";
+          label.innerText = `Route ${index + 1} of ${availableRoutes.length} • ${diffStr}`;
+        } else {
+          label.innerText = "Fastest route";
+        }
+
+        // Re-draw to update colors if map is already drawn
+        if (routeLayers.length > 0) {
+          updateRouteColors();
+        }
+      }
+
+      function drawAllRoutes(destLat, destLon) {
+        // Clear existing layers
+        routeLayers.forEach((item) => {
+          map.removeLayer(item.layer);
+          if (item.hitLayer) map.removeLayer(item.hitLayer);
+        });
+        routeLayers = [];
+
+        if (destMarker) map.removeLayer(destMarker);
+        destMarker = L.marker([destLat, destLon], { icon: destIcon }).addTo(map);
+
+        // Draw routes
+        availableRoutes.forEach((route, index) => {
+          // 1. Create a THICK invisible hit layer for easier clicking
+          const hitLayer = L.geoJSON(route.geometry, {
+            style: {
+              color: "transparent",
+              weight: 30, // Very thick hit area
+              opacity: 0,
+            },
+          }).addTo(map);
+
+          // 2. Create the visible route line
+          const layer = L.geoJSON(route.geometry, {
+            style: { className: "route-line" },
+          }).addTo(map);
+
+          // Add interaction to BOTH layers
+          const clickHandler = (e) => {
+            L.DomEvent.stopPropagation(e);
+            selectRoute(index);
+          };
+
+          layer.eachLayer((l) => l.on("click", clickHandler));
+          hitLayer.eachLayer((l) => l.on("click", clickHandler));
+
+          routeLayers.push({ layer, hitLayer, index, route });
+        });
+
+        updateRouteColors();
+
+        // Fit bounds to all routes
+        const group = new L.featureGroup(routeLayers.map((r) => r.layer));
+        map.fitBounds(group.getBounds(), { padding: [50, 50, 300, 50] });
+      }
+
+      function updateRouteColors() {
+        routeLayers.forEach(({ layer, hitLayer, index, route }) => {
+          const isSelected = index === selectedRouteIndex;
+
+          if (isSelected) {
+            // Selected Route Style
+            layer.setStyle({
+              color: "#4a89f3", // Blue
+              weight: 8,
+              opacity: 0.9,
+              className: "route-selected",
             });
-            routeLayers = [];
-            
-            if (destMarker) map.removeLayer(destMarker);
-            destMarker = L.marker([destLat, destLon], { icon: destIcon }).addTo(map);
 
-            // Draw routes
-            availableRoutes.forEach((route, index) => {
-                // 1. Create a THICK invisible hit layer for easier clicking
-                const hitLayer = L.geoJSON(route.geometry, {
-                    style: { 
-                        color: 'transparent', 
-                        weight: 30, // Very thick hit area
-                        opacity: 0 
-                    }
-                }).addTo(map);
+            // Bring both visible and hit layer to front
+            layer.bringToFront();
+            if (hitLayer) hitLayer.bringToFront();
 
-                // 2. Create the visible route line
-                const layer = L.geoJSON(route.geometry, {
-                    style: { className: 'route-line' } 
-                }).addTo(map);
-                
-                // Add interaction to BOTH layers
-                const clickHandler = (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    selectRoute(index);
-                };
-
-                layer.eachLayer(l => l.on('click', clickHandler));
-                hitLayer.eachLayer(l => l.on('click', clickHandler));
-                
-                routeLayers.push({ layer, hitLayer, index, route });
+            layer.unbindTooltip(); // No tooltip for selected
+          } else {
+            // Alternative Route Style
+            layer.setStyle({
+              color: "#9ca3af", // Gray
+              weight: 8,
+              opacity: 0.6,
+              className: "route-alternative",
             });
 
-            updateRouteColors();
-            
-            // Fit bounds to all routes
-            const group = new L.featureGroup(routeLayers.map(r => r.layer));
-            map.fitBounds(group.getBounds(), { padding: [50, 50, 300, 50] });
+            // Ensure hit layer is also available (though z-index might be lower)
+            // We don't bring to front here to keep selected on top,
+            // BUT the thick hitLayer of alternatives might overlap the selected route.
+            // This is a trade-off. To fix "cannot select", we might want hitLayers on top?
+            // No, that would block the selected route.
+            // The user can click the *exposed* parts of alternatives.
+
+            // Add Tooltip with Time Difference
+            const selectedDuration = availableRoutes[selectedRouteIndex].duration;
+            const diff = Math.round((route.duration - selectedDuration) / 60);
+            const diffStr = diff > 0 ? `+${diff} min` : `${diff} min`;
+
+            // Calculate midpoint for tooltip
+            const coords = route.geometry.coordinates;
+            const mid = coords[Math.floor(coords.length / 2)];
+            const latLng = [mid[1], mid[0]];
+
+            // Bind interactive tooltip
+            const tooltipContent = `<div onclick="window.selectRoute(${index})" class="w-full h-full clickable-tooltip">${diffStr}</div>`;
+
+            layer
+              .bindTooltip(tooltipContent, {
+                permanent: true,
+                direction: "center",
+                className: "cursor-pointer bg-white text-gray-800 font-bold px-2 py-1 rounded shadow-md text-xs border border-gray-200 hover:bg-gray-50",
+                interactive: true,
+              })
+              .openTooltip(latLng);
+          }
+        });
+      }
+
+      // Expose selectRoute to window for tooltip onclick
+      window.selectRoute = selectRoute;
+
+      /* REMOVED OLD drawRouteOnMap function */
+      /* function drawRouteOnMap(geojson, destLat, destLon) { ... } */
+
+      function resetMap() {
+        IS_NAVIGATING = false;
+        routeLayers.forEach((item) => {
+          map.removeLayer(item.layer);
+          if (item.hitLayer) map.removeLayer(item.hitLayer);
+        });
+        routeLayers = [];
+        if (destMarker) map.removeLayer(destMarker);
+
+        // Switch user icon back to dot
+        if (userMarker) userMarker.setIcon(userIcon);
+
+        // Reset Arrays
+        currentRouteSteps = [];
+
+        // UI Reset
+        previewSheet.classList.add("translate-y-full");
+        navTopBar.classList.add("-translate-y-[150%]");
+        navBottomBar.classList.add("translate-y-full");
+        navReportBtn.classList.add("translate-x-[200%]");
+
+        homeState.classList.remove("translate-y-full");
+        headerUi.classList.remove("opacity-0", "pointer-events-none");
+
+        if (CURRENT_LOCATION) map.setView(CURRENT_LOCATION, 15);
+      }
+
+      // --- 5. NAVIGATION MODE (REAL TIME) ---
+      function startNavigation() {
+        if (!currentRouteSteps.length) return;
+
+        IS_NAVIGATING = true;
+        IS_FOLLOWING = true;
+
+        // Activate Wake Lock to prevent screen sleep
+        requestWakeLock();
+
+        // Hide Preview, Show Nav UI
+        previewSheet.classList.add("translate-y-full");
+        navTopBar.classList.remove("-translate-y-[150%]");
+        navBottomBar.classList.remove("translate-y-full");
+        navReportBtn.classList.remove("translate-x-[200%]");
+        document.getElementById("speedometer").classList.remove("translate-y-[400%]");
+
+        // Update Map View
+        if (CURRENT_LOCATION) {
+          map.setView(CURRENT_LOCATION, 18, { animate: true });
+        } else {
+          map.setZoom(18);
         }
 
-        function updateRouteColors() {
-            routeLayers.forEach(({ layer, hitLayer, index, route }) => {
-                const isSelected = index === selectedRouteIndex;
-                
-                if (isSelected) {
-                    // Selected Route Style
-                    layer.setStyle({
-                        color: '#4a89f3', // Blue
-                        weight: 8,
-                        opacity: 0.9,
-                        className: 'route-selected'
-                    });
-                    
-                    // Bring both visible and hit layer to front
-                    layer.bringToFront();
-                    if (hitLayer) hitLayer.bringToFront();
-                    
-                    layer.unbindTooltip(); // No tooltip for selected
-                } else {
-                    // Alternative Route Style
-                    layer.setStyle({
-                        color: '#9ca3af', // Gray
-                        weight: 8, 
-                        opacity: 0.6,
-                        className: 'route-alternative'
-                    });
-                    
-                    // Ensure hit layer is also available (though z-index might be lower)
-                    // We don't bring to front here to keep selected on top, 
-                    // BUT the thick hitLayer of alternatives might overlap the selected route.
-                    // This is a trade-off. To fix "cannot select", we might want hitLayers on top?
-                    // No, that would block the selected route. 
-                    // The user can click the *exposed* parts of alternatives.
-                    
-                    // Add Tooltip with Time Difference
-                    const selectedDuration = availableRoutes[selectedRouteIndex].duration;
-                    const diff = Math.round((route.duration - selectedDuration) / 60);
-                    const diffStr = diff > 0 ? `+${diff} min` : `${diff} min`;
-                    
-                    // Calculate midpoint for tooltip
-                    const coords = route.geometry.coordinates;
-                    const mid = coords[Math.floor(coords.length / 2)];
-                    const latLng = [mid[1], mid[0]];
-                    
-                    // Bind interactive tooltip
-                    const tooltipContent = `<div onclick="window.selectRoute(${index})" class="w-full h-full clickable-tooltip">${diffStr}</div>`;
+        // Change user marker to Arrow
+        if (userMarker) userMarker.setIcon(navIcon);
 
-                    layer.bindTooltip(tooltipContent, { 
-                        permanent: true, 
-                        direction: 'center', 
-                        className: 'cursor-pointer bg-white text-gray-800 font-bold px-2 py-1 rounded shadow-md text-xs border border-gray-200 hover:bg-gray-50',
-                        interactive: true
-                    }).openTooltip(latLng);
-                }
-            });
+        // const msg = TRAVEL_MODE === 'cycling' ? "Navigation Active. Ride safely." : "Navigation Active. Drive safely.";
+        // showToast(msg);
+
+        // Initial Instruction
+        updateNavUI(currentRouteSteps[0], 0);
+
+        // Initialize Bottom Bar Stats
+        if (currentRouteSummary) {
+          const totalMins = Math.round(currentRouteSummary.duration / 60);
+          let durationDisplay = "";
+          if (totalMins >= 60) {
+            const h = Math.floor(totalMins / 60);
+            const m = totalMins % 60;
+            durationDisplay = `${h}h ${m}m`;
+          } else {
+            durationDisplay = `${totalMins}`;
+          }
+          document.getElementById("nav-duration").innerText = durationDisplay;
+
+          const eta = new Date(Date.now() + currentRouteSummary.duration * 1000);
+          document.getElementById("eta-display").innerText = eta.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+
+          let distStr = "";
+          if (USE_METRIC) {
+            distStr = (currentRouteSummary.distance / 1000).toFixed(1) + " km";
+          } else {
+            distStr = (currentRouteSummary.distance / 1609.34).toFixed(1) + " mi";
+          }
+          document.getElementById("nav-distance-speed").innerText = `${distStr} • --`;
+        }
+      }
+
+      function handleNavigationUpdate(position) {
+        // This runs whenever GPS updates while in nav mode
+        // We need to calculate which step we are closest to
+
+        if (!currentRouteSteps.length) return;
+
+        // Simple Logic: Find the first step we haven't passed yet.
+        // In a pro app, we'd project point to line segments.
+        // Here, we just check distance to the next maneuver point.
+
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const speed = position.coords.speed || 0; // m/s
+
+        // Calculate distance to next turn
+        const nextManeuver = currentRouteSteps[0].maneuver.location; // [lng, lat]
+        const distToTurn = getDistance(lat, lng, nextManeuver[1], nextManeuver[0]); // meters
+        const kmh = Math.round(speed * 3.6);
+        document.getElementById("speed-value").innerText = kmh;
+
+        if (USE_METRIC) {
+          speedDisplay = `${kmh} km/h`;
+        } else {
+          const mph = Math.round(speed * 2.23694);
+          speedDisplay = `${mph} mph`;
         }
 
-        // Expose selectRoute to window for tooltip onclick
-        window.selectRoute = selectRoute;
+        // Calculate Remaining Distance & Time (Rough Estimate)
+        // We sum up remaining steps + distance to next turn
+        let remainingDist = distToTurn;
+        let remainingTime = 0;
 
-        /* REMOVED OLD drawRouteOnMap function */
-        /* function drawRouteOnMap(geojson, destLat, destLon) { ... } */
-
-        function resetMap() {
-            routeLayers.forEach(item => {
-                map.removeLayer(item.layer);
-                if (item.hitLayer) map.removeLayer(item.hitLayer);
-            });
-            routeLayers = [];
-            if (destMarker) map.removeLayer(destMarker);
-            
-            // Switch user icon back to dot
-            if (userMarker) userMarker.setIcon(userIcon);
-            
-            // Reset Arrays
-            currentRouteSteps = [];
-            
-            // UI Reset
-            previewSheet.classList.add('translate-y-full');
-            navTopBar.classList.add('-translate-y-[150%]');
-            navBottomBar.classList.add('translate-y-full');
-            navReportBtn.classList.add('translate-x-[200%]');
-            
-            homeState.classList.remove('translate-y-full');
-            headerUi.classList.remove('opacity-0', 'pointer-events-none');
-            
-            if (CURRENT_LOCATION) map.setView(CURRENT_LOCATION, 15);
+        // Add up all subsequent steps
+        for (let i = 1; i < currentRouteSteps.length; i++) {
+          remainingDist += currentRouteSteps[i].distance;
+          remainingTime += currentRouteSteps[i].duration;
+        }
+        // Add time for current step (dist / speed or ratio)
+        // Simple approximation: (distToTurn / stepTotalDist) * stepDuration
+        if (currentRouteSteps[0].distance > 0) {
+          remainingTime += (distToTurn / currentRouteSteps[0].distance) * currentRouteSteps[0].duration;
         }
 
-        // --- 5. NAVIGATION MODE (REAL TIME) ---
-        function startNavigation() {
-            if (!currentRouteSteps.length) return;
+        // Update Bottom Bar
+        const totalMins = Math.round(remainingTime / 60);
+        let durationDisplay = "";
+        if (totalMins >= 60) {
+          const h = Math.floor(totalMins / 60);
+          const m = totalMins % 60;
+          durationDisplay = `${h}h ${m}m`;
+        } else {
+          durationDisplay = `${totalMins}`;
+        }
+        document.getElementById("nav-duration").innerText = durationDisplay;
 
-            // Activate Wake Lock to prevent screen sleep
-            requestWakeLock();
+        const eta = new Date(Date.now() + remainingTime * 1000);
+        document.getElementById("eta-display").innerText = eta.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
-            // Hide Preview, Show Nav UI
-            previewSheet.classList.add('translate-y-full');
-            navTopBar.classList.remove('-translate-y-[150%]');
-            navBottomBar.classList.remove('translate-y-full');
-            navReportBtn.classList.remove('translate-x-[200%]');
-            document.getElementById('speedometer').classList.remove('translate-y-[400%]');
-
-            // Update Map View
-            if (CURRENT_LOCATION) {
-                map.setView(CURRENT_LOCATION, 18, { animate: true });
-            } else {
-                map.setZoom(18);
-            }
-            
-            // Change user marker to Arrow
-            if (userMarker) userMarker.setIcon(navIcon);
-
-            // const msg = TRAVEL_MODE === 'cycling' ? "Navigation Active. Ride safely." : "Navigation Active. Drive safely.";
-            // showToast(msg);
-            
-            // Initial Instruction
-            updateNavUI(currentRouteSteps[0], 0);
-
-            // Initialize Bottom Bar Stats
-            if (currentRouteSummary) {
-                const totalMins = Math.round(currentRouteSummary.duration / 60);
-                let durationDisplay = "";
-                if (totalMins >= 60) {
-                    const h = Math.floor(totalMins / 60);
-                    const m = totalMins % 60;
-                    durationDisplay = `${h}h ${m}m`;
-                } else {
-                    durationDisplay = `${totalMins}`;
-                }
-                document.getElementById('nav-duration').innerText = durationDisplay;
-                
-                const eta = new Date(Date.now() + currentRouteSummary.duration * 1000);
-                document.getElementById('eta-display').innerText = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
-                
-                let distStr = "";
-                if (USE_METRIC) {
-                    distStr = (currentRouteSummary.distance / 1000).toFixed(1) + " km";
-                } else {
-                    distStr = (currentRouteSummary.distance / 1609.34).toFixed(1) + " mi";
-                }
-                document.getElementById('nav-distance-speed').innerText = `${distStr} • --`;
-            }
+        let distStr = "";
+        if (USE_METRIC) {
+          if (remainingDist > 1000) {
+            distStr = (remainingDist / 1000).toFixed(1) + " km";
+          } else {
+            distStr = Math.round(remainingDist) + " m";
+          }
+        } else {
+          if (remainingDist > 1609) {
+            distStr = (remainingDist / 1609).toFixed(1) + " mi";
+          } else {
+            distStr = Math.round(remainingDist * 3.28084) + " ft";
+          }
         }
 
-        function handleNavigationUpdate(position) {
-            // This runs whenever GPS updates while in nav mode
-            // We need to calculate which step we are closest to
-            
-            if (!currentRouteSteps.length) return;
+        document.getElementById("nav-distance-speed").innerText = `${distStr} • ${speedDisplay}`;
 
-            // Simple Logic: Find the first step we haven't passed yet.
-            // In a pro app, we'd project point to line segments. 
-            // Here, we just check distance to the next maneuver point.
-            
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            const speed = position.coords.speed || 0; // m/s
-
-            // Update Speed in UI
-            let speedDisplay = "";
-            const kmh = Math.round(speed * 3.6);
-            document.getElementById('speed-value').innerText = kmh;
-
-            if (USE_METRIC) {
-                speedDisplay = `${kmh} km/h`;
-            } else {
-                const mph = Math.round(speed * 2.23694);
-                speedDisplay = `${mph} mph`;
-            }
-            
-            // Calculate Remaining Distance & Time (Rough Estimate)
-            // We sum up remaining steps + distance to next turn
-            let remainingDist = distToTurn;
-            let remainingTime = 0;
-            
-            // Add up all subsequent steps
-            for (let i = 1; i < currentRouteSteps.length; i++) {
-                remainingDist += currentRouteSteps[i].distance;
-                remainingTime += currentRouteSteps[i].duration;
-            }
-            // Add time for current step (dist / speed or ratio)
-            // Simple approximation: (distToTurn / stepTotalDist) * stepDuration
-            if (currentRouteSteps[0].distance > 0) {
-                remainingTime += (distToTurn / currentRouteSteps[0].distance) * currentRouteSteps[0].duration;
-            }
-
-            // Update Bottom Bar
-            const totalMins = Math.round(remainingTime / 60);
-            let durationDisplay = "";
-            if (totalMins >= 60) {
-                const h = Math.floor(totalMins / 60);
-                const m = totalMins % 60;
-                durationDisplay = `${h}h ${m}m`;
-            } else {
-                durationDisplay = `${totalMins}`;
-            }
-            document.getElementById('nav-duration').innerText = durationDisplay;
-            
-            const eta = new Date(Date.now() + remainingTime * 1000);
-            document.getElementById('eta-display').innerText = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
-
-            let distStr = "";
-            if (USE_METRIC) {
-                if (remainingDist > 1000) {
-                    distStr = (remainingDist / 1000).toFixed(1) + " km";
-                } else {
-                    distStr = Math.round(remainingDist) + " m";
-                }
-            } else {
-                if (remainingDist > 1609) {
-                    distStr = (remainingDist / 1609).toFixed(1) + " mi";
-                } else {
-                    distStr = Math.round(remainingDist * 3.28084) + " ft";
-                }
-            }
-            
-            document.getElementById('nav-distance-speed').innerText = `${distStr} • ${speedDisplay}`;
-
-            // Center map on user
-            map.panTo([lat, lng], { animate: true });
-            
-            // Rotate Arrow (if heading available)
-            const heading = position.coords.heading;
-            if (heading) {
-                const arrowEl = document.querySelector('.nav-arrow-container');
-                if (arrowEl) arrowEl.style.transform = `rotate(${heading}deg)`;
-            }
-
-            // Find current instruction
-            // We iterate through steps to find the closest maneuver point
-            let closestStep = currentRouteSteps[0];
-            let minDistance = Infinity;
-
-            // (Simplified: Just showing the first step for now because accurate "on-route" detection 
-            // requires complex turf.js geometry logic which is too heavy for one file).
-            // However, we can calculate distance to the NEXT turn.
-            
-            const nextManeuver = currentRouteSteps[0].maneuver.location; // [lng, lat]
-            const distToTurn = getDistance(lat, lng, nextManeuver[1], nextManeuver[0]); // meters
-
-            updateNavUI(currentRouteSteps[0], distToTurn);
-
-            // If very close to turn (< 30m), assume turn complete and shift array (Rough logic)
-            if (distToTurn < 30 && currentRouteSteps.length > 1) {
-                currentRouteSteps.shift(); // Remove current step
-                showToast("Turn complete");
-            }
+        // Center map on user
+        if (IS_FOLLOWING) {
+          map.panTo([lat, lng], { animate: true });
         }
 
-        function updateNavUI(step, distanceMeters) {
-            // Convert distance
-            let distDisplay = "";
-            if (USE_METRIC) {
-                if (distanceMeters > 1000) {
-                    distDisplay = (distanceMeters / 1000).toFixed(1) + " km";
-                } else {
-                    distDisplay = Math.round(distanceMeters) + " m";
-                }
-            } else {
-                if (distanceMeters > 1609) {
-                    distDisplay = (distanceMeters / 1609).toFixed(1) + " mi";
-                } else {
-                    distDisplay = Math.round(distanceMeters * 3.28084) + " ft";
-                }
-            }
+        // Rotate Arrow (if heading available)
+        const heading = position.coords.heading;
+        if (heading) {
+          const arrowEl = document.querySelector(".nav-arrow-container");
+          if (arrowEl) arrowEl.style.transform = `rotate(${heading}deg)`;
+        }
 
-            // Clean up instruction text
+        // Find current instruction
+        // We iterate through steps to find the closest maneuver point
+        let closestStep = currentRouteSteps[0];
+        let minDistance = Infinity;
+
+        // (Simplified: Just showing the first step for now because accurate "on-route" detection
+        // requires complex turf.js geometry logic which is too heavy for one file).
+        // However, we can calculate distance to the NEXT turn.
+
+        updateNavUI(currentRouteSteps[0], distToTurn);
+
+        // If very close to turn (< 30m), assume turn complete and shift array (Rough logic)
+        if (distToTurn < 30 && currentRouteSteps.length > 1) {
+          currentRouteSteps.shift(); // Remove current step
+          showToast("Turn complete");
+        }
+      }
+
+      function updateNavUI(step, distanceMeters) {
+        // Convert distance
+        let distDisplay = "";
+        if (USE_METRIC) {
+          if (distanceMeters > 1000) {
+            distDisplay = (distanceMeters / 1000).toFixed(1) + " km";
+          } else {
+            distDisplay = Math.round(distanceMeters) + " m";
+          }
+        } else {
+          if (distanceMeters > 1609) {
+            distDisplay = (distanceMeters / 1609).toFixed(1) + " mi";
+          } else {
+            distDisplay = Math.round(distanceMeters * 3.28084) + " ft";
+          }
+        }
+
+        // Clean up instruction text
+        let instruction = step.maneuver.type || "Continue";
+        if (step.maneuver.modifier) instruction += " " + step.maneuver.modifier;
+        if (step.name) instruction += " on " + step.name;
+
+        // OSRM usually provides a 'rotary' or 'turn' type. We try to humanize it.
+        // Often OSRM steps don't have a perfect text description field in v1,
+        // so we construct a basic one or use maneuver.type.
+
+        navTopBar.querySelector(".text-sm.text-gray-300").innerText = distDisplay;
+        navTopBar.querySelector(".leading-tight").innerText = capitalize(instruction);
+      }
+
+      function endNavigation() {
+        // showToast("Trip ended");
+        IS_NAVIGATING = false;
+        releaseWakeLock(); // Let screen sleep again
+        resetMap();
+        document.getElementById("speedometer").classList.add("translate-y-[400%]");
+      }
+
+      // --- 8. STEPS MODAL LOGIC ---
+      function openSteps() {
+        const modal = document.getElementById("steps-modal");
+        const list = document.getElementById("steps-list");
+
+        // Populate Summary
+        if (currentRouteSummary) {
+          const totalMins = Math.round(currentRouteSummary.duration / 60);
+          let durationDisplay = "";
+          if (totalMins >= 60) {
+            const h = Math.floor(totalMins / 60);
+            const m = totalMins % 60;
+            durationDisplay = `${h}h ${m}m`;
+          } else {
+            durationDisplay = `${totalMins}`;
+          }
+          document.getElementById("steps-duration").innerText = durationDisplay + " min";
+
+          let distStr = "";
+          if (USE_METRIC) {
+            distStr = (currentRouteSummary.distance / 1000).toFixed(1) + " km";
+          } else {
+            distStr = (currentRouteSummary.distance / 1609.34).toFixed(1) + " miles";
+          }
+          document.getElementById("steps-distance").innerText = distStr;
+        }
+
+        if (activeDestination) {
+          document.getElementById("steps-dest").innerText = activeDestination.name;
+        }
+
+        // Populate List
+        list.innerHTML = "";
+
+        if (!currentRouteSteps || currentRouteSteps.length === 0) {
+          list.innerHTML = "<div class='text-center text-gray-400 py-8'>No route details available</div>";
+        } else {
+          currentRouteSteps.forEach((step, index) => {
+            // Format Instruction
             let instruction = step.maneuver.type || "Continue";
             if (step.maneuver.modifier) instruction += " " + step.maneuver.modifier;
             if (step.name) instruction += " on " + step.name;
-            
-            // OSRM usually provides a 'rotary' or 'turn' type. We try to humanize it.
-            // Often OSRM steps don't have a perfect text description field in v1, 
-            // so we construct a basic one or use maneuver.type.
-            
-            navTopBar.querySelector('.text-sm.text-gray-300').innerText = distDisplay;
-            navTopBar.querySelector('.leading-tight').innerText = capitalize(instruction);
-        }
+            instruction = capitalize(instruction);
 
-        function endNavigation() {
-            // showToast("Trip ended");
-            releaseWakeLock(); // Let screen sleep again
-            resetMap();
-            document.getElementById('speedometer').classList.add('translate-y-[400%]');
-        }
-
-        // --- 8. STEPS MODAL LOGIC ---
-        function openSteps() {
-            const modal = document.getElementById('steps-modal');
-            const list = document.getElementById('steps-list');
-            
-            // Populate Summary
-            if (currentRouteSummary) {
-                const totalMins = Math.round(currentRouteSummary.duration / 60);
-                let durationDisplay = "";
-                if (totalMins >= 60) {
-                    const h = Math.floor(totalMins / 60);
-                    const m = totalMins % 60;
-                    durationDisplay = `${h}h ${m}m`;
-                } else {
-                    durationDisplay = `${totalMins}`;
-                }
-                document.getElementById('steps-duration').innerText = durationDisplay + " min";
-                
-                let distStr = "";
-                if (USE_METRIC) {
-                    distStr = (currentRouteSummary.distance / 1000).toFixed(1) + " km";
-                } else {
-                    distStr = (currentRouteSummary.distance / 1609.34).toFixed(1) + " miles";
-                }
-                document.getElementById('steps-distance').innerText = distStr;
-            }
-            
-            if (activeDestination) {
-                document.getElementById('steps-dest').innerText = activeDestination.name;
-            }
-
-            // Populate List
-            list.innerHTML = "";
-            
-            if (!currentRouteSteps || currentRouteSteps.length === 0) {
-                list.innerHTML = "<div class='text-center text-gray-400 py-8'>No route details available</div>";
+            // Format Distance
+            let dist = "";
+            if (USE_METRIC) {
+              if (step.distance > 1000) {
+                dist = (step.distance / 1000).toFixed(1) + " km";
+              } else {
+                dist = Math.round(step.distance) + " m";
+              }
             } else {
-                currentRouteSteps.forEach((step, index) => {
-                    // Format Instruction
-                    let instruction = step.maneuver.type || "Continue";
-                    if (step.maneuver.modifier) instruction += " " + step.maneuver.modifier;
-                    if (step.name) instruction += " on " + step.name;
-                    instruction = capitalize(instruction);
+              if (step.distance > 1609) {
+                dist = (step.distance / 1609).toFixed(1) + " mi";
+              } else {
+                dist = Math.round(step.distance * 3.28084) + " ft";
+              }
+            }
 
-                    // Format Distance
-                    let dist = "";
-                    if (USE_METRIC) {
-                        if (step.distance > 1000) {
-                            dist = (step.distance / 1000).toFixed(1) + " km";
-                        } else {
-                            dist = Math.round(step.distance) + " m";
-                        }
-                    } else {
-                        if (step.distance > 1609) {
-                            dist = (step.distance / 1609).toFixed(1) + " mi";
-                        } else {
-                            dist = Math.round(step.distance * 3.28084) + " ft";
-                        }
-                    }
+            // Icon Logic (Simple mapping)
+            let icon = "arrow-up";
+            const m = step.maneuver;
+            if (m.type === "turn") {
+              if (m.modifier.includes("left")) icon = "arrow-left";
+              if (m.modifier.includes("right")) icon = "arrow-right";
+            } else if (m.type === "roundabout" || m.type === "rotary") {
+              icon = "refresh-cw";
+            } else if (m.type === "arrive") {
+              icon = "map-pin";
+            }
 
-                    // Icon Logic (Simple mapping)
-                    let icon = "arrow-up";
-                    const m = step.maneuver;
-                    if (m.type === "turn") {
-                        if (m.modifier.includes("left")) icon = "arrow-left";
-                        if (m.modifier.includes("right")) icon = "arrow-right";
-                    } else if (m.type === "roundabout" || m.type === "rotary") {
-                        icon = "refresh-cw"; 
-                    } else if (m.type === "arrive") {
-                        icon = "map-pin";
-                    }
-
-                    const item = `
+            const item = `
                         <div class="flex items-start space-x-3 p-3 bg-white dark:bg-dark-surface rounded-lg border border-gray-100 dark:border-gray-700">
                             <div class="mt-1 text-gray-400 dark:text-gray-500">
                                 <i data-lucide="${icon}" class="w-5 h-5"></i>
@@ -1635,123 +1725,122 @@
                             </div>
                         </div>
                     `;
-                    list.innerHTML += item;
-                });
-                
-                // Re-render icons
-                lucide.createIcons();
-            }
+            list.innerHTML += item;
+          });
 
-            modal.classList.remove('translate-y-full');
+          // Re-render icons
+          lucide.createIcons();
         }
 
-        function closeSteps() {
-            document.getElementById('steps-modal').classList.add('translate-y-full');
+        modal.classList.remove("translate-y-full");
+      }
+
+      function closeSteps() {
+        document.getElementById("steps-modal").classList.add("translate-y-full");
+      }
+
+      // --- 6. UTILS ---
+      function getDistance(lat1, lon1, lat2, lon2) {
+        // Haversine formula for meters
+        const R = 6371e3; // metres
+        const φ1 = (lat1 * Math.PI) / 180;
+        const φ2 = (lat2 * Math.PI) / 180;
+        const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+        const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
+      }
+
+      function capitalize(s) {
+        return s && s[0].toUpperCase() + s.slice(1);
+      }
+
+      // --- 7. WAZE REPORTING ---
+      function toggleReportMenu() {
+        if (reportMenu.classList.contains("opacity-0")) {
+          reportMenu.classList.remove("opacity-0", "pointer-events-none", "scale-90");
+        } else {
+          reportMenu.classList.add("opacity-0", "pointer-events-none", "scale-90");
         }
+      }
 
-        // --- 6. UTILS ---
-        function getDistance(lat1, lon1, lat2, lon2) {
-            // Haversine formula for meters
-            const R = 6371e3; // metres
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                    Math.cos(φ1) * Math.cos(φ2) *
-                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-            return R * c;
+      function submitReport(type) {
+        toggleReportMenu();
+        showToast(`Reported ${type} at current location`);
+        if (CURRENT_LOCATION) {
+          const reportIcon = L.divIcon({
+            html: `<div class="bg-orange-500 text-white p-1 rounded-full shadow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>`,
+            className: "",
+            iconSize: [24, 24],
+          });
+          L.marker(CURRENT_LOCATION, { icon: reportIcon }).addTo(map);
         }
+      }
 
-        function capitalize(s) {
-            return s && s[0].toUpperCase() + s.slice(1);
+      // --- 8. SETTINGS LOGIC ---
+      function openSettings() {
+        document.getElementById("settings-state").classList.remove("translate-x-full");
+      }
+
+      function closeSettings() {
+        document.getElementById("settings-state").classList.add("translate-x-full");
+      }
+
+      function toggleDarkMode() {
+        DARK_MODE = !DARK_MODE;
+        localStorage.setItem("DARK_MODE", DARK_MODE);
+        const body = document.body;
+        const html = document.documentElement;
+
+        if (DARK_MODE) {
+          html.classList.add("dark");
+          // Switch to Dark Matter tiles
+          tileLayer.setUrl("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png");
+          // Add filter class
+          tileLayer.getContainer().classList.add("map-tiles-dark");
+        } else {
+          html.classList.remove("dark");
+          // Switch back to Positron
+          tileLayer.setUrl("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png");
+          // Remove filter class
+          tileLayer.getContainer().classList.remove("map-tiles-dark");
         }
+      }
 
-        // --- 7. WAZE REPORTING ---
-        function toggleReportMenu() {
-            if(reportMenu.classList.contains('opacity-0')) {
-                reportMenu.classList.remove('opacity-0', 'pointer-events-none', 'scale-90');
-            } else {
-                reportMenu.classList.add('opacity-0', 'pointer-events-none', 'scale-90');
-            }
-        }
+      // --- 9. OFFLINE MAPS LOGIC ---
+      function openOfflineMaps() {
+        document.getElementById("offline-maps-modal").classList.remove("translate-y-full");
+      }
 
-        function submitReport(type) {
-            toggleReportMenu();
-            showToast(`Reported ${type} at current location`);
-            if (CURRENT_LOCATION) {
-                const reportIcon = L.divIcon({
-                    html: `<div class="bg-orange-500 text-white p-1 rounded-full shadow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>`,
-                    className: '', iconSize: [24, 24]
-                });
-                L.marker(CURRENT_LOCATION, {icon: reportIcon}).addTo(map);
-            }
-        }
+      function closeOfflineMaps() {
+        document.getElementById("offline-maps-modal").classList.add("translate-y-full");
+      }
 
-        // --- 8. SETTINGS LOGIC ---
-        function openSettings() {
-            document.getElementById('settings-state').classList.remove('translate-x-full');
-        }
+      async function searchOfflineRegion() {
+        const query = document.getElementById("offline-search-input").value;
+        if (query.length < 3) return;
 
-        function closeSettings() {
-            document.getElementById('settings-state').classList.add('translate-x-full');
-        }
+        const resultsDiv = document.getElementById("offline-search-results");
+        resultsDiv.innerHTML = '<div class="text-center text-gray-500 p-2">Searching...</div>';
 
-        function toggleDarkMode() {
-            DARK_MODE = !DARK_MODE;
-            localStorage.setItem('DARK_MODE', DARK_MODE);
-            const body = document.body;
-            const html = document.documentElement;
-            
-            if (DARK_MODE) {
-                html.classList.add('dark');
-                // Switch to Dark Matter tiles
-                tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
-                // Add filter class
-                tileLayer.getContainer().classList.add('map-tiles-dark');
-            } else {
-                html.classList.remove('dark');
-                // Switch back to Positron
-                tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
-                // Remove filter class
-                tileLayer.getContainer().classList.remove('map-tiles-dark');
-            }
-        }
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=3`);
+          const data = await res.json();
 
-        // --- 9. OFFLINE MAPS LOGIC ---
-        function openOfflineMaps() {
-            document.getElementById('offline-maps-modal').classList.remove('translate-y-full');
-        }
+          resultsDiv.innerHTML = "";
+          if (data.length === 0) {
+            resultsDiv.innerHTML = '<div class="text-center text-gray-500 p-2">No regions found</div>';
+            return;
+          }
 
-        function closeOfflineMaps() {
-            document.getElementById('offline-maps-modal').classList.add('translate-y-full');
-        }
-
-        async function searchOfflineRegion() {
-            const query = document.getElementById('offline-search-input').value;
-            if (query.length < 3) return;
-
-            const resultsDiv = document.getElementById('offline-search-results');
-            resultsDiv.innerHTML = '<div class="text-center text-gray-500 p-2">Searching...</div>';
-
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=3`);
-                const data = await res.json();
-                
-                resultsDiv.innerHTML = '';
-                if (data.length === 0) {
-                    resultsDiv.innerHTML = '<div class="text-center text-gray-500 p-2">No regions found</div>';
-                    return;
-                }
-
-                data.forEach(place => {
-                    const name = place.display_name.split(',')[0];
-                    const div = document.createElement('div');
-                    div.className = 'bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex justify-between items-center';
-                    div.innerHTML = `
+          data.forEach((place) => {
+            const name = place.display_name.split(",")[0];
+            const div = document.createElement("div");
+            div.className = "bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex justify-between items-center";
+            div.innerHTML = `
                         <div>
                             <div class="font-bold text-gray-900 dark:text-white">${name}</div>
                             <div class="text-xs text-gray-500 dark:text-gray-400 truncate w-48">${place.display_name}</div>
@@ -1760,33 +1849,32 @@
                             <i data-lucide="download" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
                         </button>
                     `;
-                    resultsDiv.appendChild(div);
-                });
-                lucide.createIcons();
-
-            } catch (e) {
-                console.error(e);
-                resultsDiv.innerHTML = '<div class="text-center text-red-500 p-2">Error searching</div>';
-            }
+            resultsDiv.appendChild(div);
+          });
+          lucide.createIcons();
+        } catch (e) {
+          console.error(e);
+          resultsDiv.innerHTML = '<div class="text-center text-red-500 p-2">Error searching</div>';
         }
+      }
 
-        function downloadRegion(name, lat, lon) {
-            showToast(`Downloading map for ${name}...`);
-            
-            // Simulate download progress
-            setTimeout(() => {
-                showToast(`${name} downloaded successfully`);
-                addDownloadedMap(name);
-                document.getElementById('offline-search-results').innerHTML = '';
-                document.getElementById('offline-search-input').value = '';
-            }, 2500);
-        }
+      function downloadRegion(name, lat, lon) {
+        showToast(`Downloading map for ${name}...`);
 
-        function addDownloadedMap(name) {
-            const list = document.getElementById('downloaded-maps-list');
-            const div = document.createElement('div');
-            div.className = 'bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center';
-            div.innerHTML = `
+        // Simulate download progress
+        setTimeout(() => {
+          showToast(`${name} downloaded successfully`);
+          addDownloadedMap(name);
+          document.getElementById("offline-search-results").innerHTML = "";
+          document.getElementById("offline-search-input").value = "";
+        }, 2500);
+      }
+
+      function addDownloadedMap(name) {
+        const list = document.getElementById("downloaded-maps-list");
+        const div = document.createElement("div");
+        div.className = "bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center";
+        div.innerHTML = `
                 <div>
                     <div class="font-bold text-gray-900 dark:text-white">${name}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">~25 MB • Expires in 30 days</div>
@@ -1795,98 +1883,101 @@
                     <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
             `;
-            list.prepend(div);
-            lucide.createIcons();
+        list.prepend(div);
+        lucide.createIcons();
+      }
+
+      function setUnits(unit) {
+        USE_METRIC = unit === "km";
+        localStorage.setItem("USE_METRIC", USE_METRIC);
+        document.getElementById("unit-mi").className = USE_METRIC
+          ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition"
+          : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
+        document.getElementById("unit-km").className = USE_METRIC
+          ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition"
+          : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
+        showToast(`Units set to ${USE_METRIC ? "Kilometers" : "Miles"}`);
+
+        if (activeDestination) {
+          fetchRoute(activeDestination.lat, activeDestination.lon);
+        }
+      }
+
+      function toggleVoice() {
+        VOICE_ENABLED = !VOICE_ENABLED;
+        localStorage.setItem("VOICE_ENABLED", VOICE_ENABLED);
+        showToast(`Voice Navigation ${VOICE_ENABLED ? "Enabled" : "Disabled"}`);
+      }
+
+      function toggleTolls() {
+        AVOID_TOLLS = !AVOID_TOLLS;
+        localStorage.setItem("AVOID_TOLLS", AVOID_TOLLS);
+        showToast(`Avoid Tolls ${AVOID_TOLLS ? "On" : "Off"}`);
+
+        if (activeDestination) {
+          fetchRoute(activeDestination.lat, activeDestination.lon);
+        }
+      }
+
+      // --- UPDATE CHECKER ---
+      async function checkForUpdates(manual = false) {
+        if (GITHUB_REPO.includes("your-username")) {
+          if (manual) showToast("Please configure GITHUB_REPO in code");
+          return;
         }
 
-        function setUnits(unit) {
-            USE_METRIC = (unit === 'km');
-            localStorage.setItem('USE_METRIC', USE_METRIC);
-            document.getElementById('unit-mi').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition" : "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition";
-            document.getElementById('unit-km').className = USE_METRIC ? "px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition" : "px-3 py-1 rounded-md text-xs font-bold text-gray-500 transition";
-            showToast(`Units set to ${USE_METRIC ? 'Kilometers' : 'Miles'}`);
+        if (manual) showToast("Checking for updates...");
 
-            if (activeDestination) {
-                fetchRoute(activeDestination.lat, activeDestination.lon);
+        try {
+          const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+          if (!res.ok) throw new Error("Failed to fetch releases");
+
+          const release = await res.json();
+          const latestVersion = release.tag_name.replace(/^v/, ""); // Remove 'v' prefix if present
+          const currentVersion = APP_VERSION.replace(/^v/, "");
+
+          if (compareVersions(latestVersion, currentVersion) > 0) {
+            // Update Available
+            if (confirm(`New version ${latestVersion} available! \n\n${release.body || "Bug fixes and improvements."}\n\nDownload now?`)) {
+              // Find APK asset
+              const apkAsset = release.assets.find((a) => a.name.endsWith(".apk"));
+              const url = apkAsset ? apkAsset.browser_download_url : release.html_url;
+              window.open(url, "_system");
             }
+          } else {
+            if (manual) showToast("No updates available");
+          }
+        } catch (e) {
+          console.error(e);
+          if (manual) showToast("Error checking for updates");
         }
+      }
 
-        function toggleVoice() {
-            VOICE_ENABLED = !VOICE_ENABLED;
-            localStorage.setItem('VOICE_ENABLED', VOICE_ENABLED);
-            showToast(`Voice Navigation ${VOICE_ENABLED ? 'Enabled' : 'Disabled'}`);
+      function compareVersions(a, b) {
+        const pa = a.split(".").map(Number);
+        const pb = b.split(".").map(Number);
+        for (let i = 0; i < 3; i++) {
+          const na = pa[i] || 0;
+          const nb = pb[i] || 0;
+          if (na > nb) return 1;
+          if (na < nb) return -1;
         }
+        return 0;
+      }
 
-        function toggleTolls() {
-            AVOID_TOLLS = !AVOID_TOLLS;
-            localStorage.setItem('AVOID_TOLLS', AVOID_TOLLS);
-            showToast(`Avoid Tolls ${AVOID_TOLLS ? 'On' : 'Off'}`);
+      // Update Version Display
+      const vDisplay = document.getElementById("version-display");
+      if (vDisplay) vDisplay.innerText = `Version ${APP_VERSION} • Rick Maps`;
 
-            if (activeDestination) {
-                fetchRoute(activeDestination.lat, activeDestination.lon);
-            }
-        }
+      // Check on startup (silently)
+      checkForUpdates(false);
 
-        // --- UPDATE CHECKER ---
-        async function checkForUpdates(manual = false) {
-            if (GITHUB_REPO.includes('your-username')) {
-                if (manual) showToast("Please configure GITHUB_REPO in code");
-                return;
-            }
-
-            if (manual) showToast("Checking for updates...");
-
-            try {
-                const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-                if (!res.ok) throw new Error("Failed to fetch releases");
-                
-                const release = await res.json();
-                const latestVersion = release.tag_name.replace(/^v/, ''); // Remove 'v' prefix if present
-                const currentVersion = APP_VERSION.replace(/^v/, '');
-
-                if (compareVersions(latestVersion, currentVersion) > 0) {
-                    // Update Available
-                    if (confirm(`New version ${latestVersion} available! \n\n${release.body || 'Bug fixes and improvements.'}\n\nDownload now?`)) {
-                        // Find APK asset
-                        const apkAsset = release.assets.find(a => a.name.endsWith('.apk'));
-                        const url = apkAsset ? apkAsset.browser_download_url : release.html_url;
-                        window.open(url, '_system');
-                    }
-                } else {
-                    if (manual) showToast("No updates available");
-                }
-            } catch (e) {
-                console.error(e);
-                if (manual) showToast("Error checking for updates");
-            }
-        }
-
-        function compareVersions(a, b) {
-            const pa = a.split('.').map(Number);
-            const pb = b.split('.').map(Number);
-            for (let i = 0; i < 3; i++) {
-                const na = pa[i] || 0;
-                const nb = pb[i] || 0;
-                if (na > nb) return 1;
-                if (na < nb) return -1;
-            }
-            return 0;
-        }
-
-        // Update Version Display
-        const vDisplay = document.getElementById('version-display');
-        if(vDisplay) vDisplay.innerText = `Version ${APP_VERSION} • Rick Maps`;
-
-        // Check on startup (silently)
-        checkForUpdates(false);
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-msg').innerText = msg;
-            toast.classList.remove('opacity-0');
-            setTimeout(() => toast.classList.add('opacity-0'), 4000);
-        }
-
+      function showToast(msg) {
+        const toast = document.getElementById("toast");
+        document.getElementById("toast-msg").innerText = msg;
+        toast.classList.remove("opacity-0");
+        setTimeout(() => toast.classList.add("opacity-0"), 4000);
+      }
     </script>
-</body>
+  </body>
 </html>
